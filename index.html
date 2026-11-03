@@ -189,7 +189,20 @@ textarea#saveCode{width:100%;min-height:76px;font-family:ui-monospace,Menlo,Cons
 .panel-col{display:flex;flex-direction:column;gap:12px;width:100%;max-width:360px}
 #err{position:fixed;inset:0;display:grid;place-items:center;padding:24px;text-align:center}
 
-@media (prefers-reduced-motion: reduce){ .fired,.crate-result,#toast{animation:none} .crate-box.shake{animation:none} }
+#turnHint{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);pointer-events:none;
+  font-family:var(--display);font-size:clamp(20px,5vw,34px);color:#2a1700;background:var(--gold);padding:8px 18px;border-radius:12px;
+  box-shadow:0 5px 0 var(--gold-deep);white-space:nowrap;animation:pulse .45s ease-in-out infinite alternate}
+#turnHint.queued{background:var(--ok);box-shadow:0 5px 0 #1d8a50;animation:none}
+@keyframes pulse{from{transform:translateX(-50%) scale(1)}to{transform:translateX(-50%) scale(1.08)}}
+#worldBanner{position:fixed;left:50%;top:36%;transform:translate(-50%,-50%);pointer-events:none;text-align:center;font-family:var(--display);
+  font-size:clamp(26px,6.5vw,52px);line-height:1.05;color:#fff;text-shadow:0 4px 0 rgba(0,0,0,.45);width:max-content;max-width:calc(100vw - 32px);
+  text-wrap:balance;animation:bannerIn .5s cubic-bezier(.2,1.6,.4,1) both}
+#worldBanner small{display:block;font-family:var(--body);font-weight:800;font-size:14px;letter-spacing:.2em;color:var(--gold);text-shadow:0 2px 0 rgba(0,0,0,.5)}
+@keyframes bannerIn{from{opacity:0;transform:translate(-50%,-50%) scale(.6)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+.world-pill{font-size:13px;font-weight:600;padding:4px 12px}
+.cloud-line{margin:0;font-size:13px;font-weight:600;line-height:1.45;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid var(--panel-line)}
+.cloud-line.ok{color:var(--ok)} .cloud-line.warn{color:#ffd27a}
+@media (prefers-reduced-motion: reduce){ .fired,.crate-result,#toast,#turnHint,#worldBanner{animation:none} .crate-box.shake{animation:none} }
 </style>
 </head>
 <body>
@@ -201,12 +214,15 @@ textarea#saveCode{width:100%;min-height:76px;font-family:ui-monospace,Menlo,Cons
   <div class="hud-left">
     <div id="score">0</div>
     <div class="pill"><span class="coin-dot"></span><span id="coinCount">0</span></div>
+    <div class="pill world-pill" id="worldPill">🏛️ Washington</div>
     <div class="powers" id="powers"></div>
   </div>
   <button id="pauseBtn" aria-label="Pause"><span><i></i><i></i></span></button>
 </div>
 <div id="warn" hidden>ER IST DIREKT HINTER DIR!</div>
 <div id="toast" hidden></div>
+<div id="turnHint" hidden></div>
+<div id="worldBanner" hidden></div>
 <div id="bubble" hidden></div>
 <div id="shout" hidden></div>
 
@@ -226,7 +242,7 @@ textarea#saveCode{width:100%;min-height:76px;font-family:ui-monospace,Menlo,Cons
       <button class="btn" id="shopBtn">SKINS</button>
       <button class="btn" id="missionBtn">MISSIONEN<span class="badge" id="mBadge" hidden>0</span></button>
     </div>
-    <p class="hint">Wischen oder <kbd>←</kbd><kbd>→</kbd> Spur wechseln · <kbd>↑</kbd> springen · <kbd>↓</kbd> rutschen<br>Zweimal stolpern und er hat dich.</p>
+    <p class="hint">Wischen oder <kbd>←</kbd><kbd>→</kbd> Spur wechseln · <kbd>↑</kbd> springen · <kbd>↓</kbd> rutschen<br>An Kreuzungen <kbd>←</kbd><kbd>→</kbd> abbiegen · über Rampen auf die Züge<br>Zweimal stolpern und er hat dich.</p>
   </div>
 </section>
 <div class="top-icons" id="topIcons">
@@ -274,6 +290,7 @@ textarea#saveCode{width:100%;min-height:76px;font-family:ui-monospace,Menlo,Cons
   <div class="page-top"><h2>SPEICHERSTAND</h2></div>
   <div class="sheet grow">
     <div class="list">
+      <p class="cloud-line" id="cloudStatus"></p>
       <p class="hint" style="text-align:left">Dein Fortschritt wird nach jedem Lauf, Kauf und jeder Belohnung automatisch gespeichert. Du hast drei Spielstände.</p>
       <div id="slots" style="display:flex;flex-direction:column;gap:8px"></div>
       <span class="field-label">Speicher-Code (für ein anderes Gerät)</span>
@@ -298,6 +315,7 @@ textarea#saveCode{width:100%;min-height:76px;font-family:ui-monospace,Menlo,Cons
     <div class="stat"><small>Meter</small><strong id="oDist">0</strong></div>
     <div class="stat"><small>Münzen</small><strong id="oCoins">0</strong></div>
   </div>
+  <p class="over-sub" id="overWorld"></p>
   <p class="hint" id="savedNote">💾 Gespeichert</p>
   <div class="panel-col">
     <button class="btn primary" id="againBtn">NOCHMAL</button>
@@ -390,6 +408,40 @@ const TRUMP_LINES = [
 ];
 const STUMBLE_LINES = ["HAB DICH GLEICH!", "Gleich bist du gefeuert!", "Jetzt wird's eng, Loser!", "Ha! Gestolpert! Sad!", "ICE, jetzt zugreifen!"];
 
+/* ================= Worlds (unlock by score) ================= */
+const WORLDS = [
+  {id:'dc', name:'Washington', emoji:'🏛️', at:0,
+   sky:['#141a45','#4a2f6e','#c4587a','#ff9e62'], fog:0xb5607a, hemiSky:0xffe2c8, hemiGround:0x3a3060, hemiI:.95,
+   ground:0x2a2540, walk:0xffffff, road:0xffffff,
+   buildings:['#3b3f6b','#5a3d5c','#2e4a62','#6b4a3a','#4a4f5f','#384a40','#6a3846'], lit:['#ffd98a','#ffe9b8'], dark:'#1b1d33', litChance:.45,
+   prop:'tree', train:'#2f6bff'},
+  {id:'ny', name:'New York bei Nacht', emoji:'🌃', at:1000,
+   sky:['#04050d','#0c1134','#1c2462','#4a2a7a'], fog:0x1c1f4a, hemiSky:0x9fb0ff, hemiGround:0x14142c, hemiI:.8,
+   ground:0x15172a, walk:0x8c8aae, road:0xb4b8dc,
+   buildings:['#1c2033','#25223a','#1a2a3a','#2a1f2f','#202530'], lit:['#7df9ff','#ff5ad9','#ffe066'], dark:'#0b0c18', litChance:.55,
+   prop:'neon', train:'#c0c6d0'},
+  {id:'desert', name:'Wüste von Nevada', emoji:'🏜️', at:2500,
+   sky:['#3d7fd6','#7fb5ea','#f2c88c','#ffb067'], fog:0xf0c08a, hemiSky:0xfff2d8, hemiGround:0x8a5a30, hemiI:1.05,
+   ground:0xd9a866, walk:0xf3d6a6, road:0xe6dccc,
+   buildings:['#c9925a','#b97a46','#d8a872','#a8683a'], lit:['#5a3a20'], dark:'#7a4a28', litChance:.6, low:true,
+   prop:'cactus', train:'#b0442a'},
+  {id:'snow', name:'Winter in Alaska', emoji:'❄️', at:4500,
+   sky:['#6d8fb8','#a9c3dd','#dde8f2','#f4f8fb'], fog:0xdfe8f0, hemiSky:0xffffff, hemiGround:0x8095b0, hemiI:1.0,
+   ground:0xf2f6fa, walk:0xffffff, road:0xd4dce8,
+   buildings:['#7a4a3a','#5a6a7a','#8a5a40','#4a5a6a'], lit:['#ffd98a'], dark:'#2a3040', litChance:.4,
+   prop:'pine', train:'#d62b2b', snow:true},
+  {id:'florida', name:'Strand von Florida', emoji:'🌴', at:7000,
+   sky:['#1e8fd6','#5cc2f0','#a6e6f7','#fff1c4'], fog:0xbfe9f5, hemiSky:0xffffff, hemiGround:0x6aa0a0, hemiI:1.05,
+   ground:0xf0dca0, walk:0xfff0d0, road:0xffffff,
+   buildings:['#f2a7b5','#9fdbd0','#f7d58a','#c6b3f0','#f4f4f4'], lit:['#3a6a8a'], dark:'#5a8aa8', litChance:.5,
+   prop:'palm', train:'#ff7a00'},
+  {id:'gold', name:'Goldene Stadt', emoji:'🏆', at:10000,
+   sky:['#1a0f05','#4a2a08','#a8661a','#ffcf5a'], fog:0x8a5a1a, hemiSky:0xffe6a8, hemiGround:0x4a3010, hemiI:1.0,
+   ground:0x3a2a10, walk:0xffe08a, road:0xffe6a0,
+   buildings:['#c9a227','#a8841a','#e0b84a','#8a6a10'], lit:['#fff4c0'], dark:'#5a4208', litChance:.6,
+   prop:'goldtree', train:'#ffd23a'},
+];
+
 /* ================= Missions ================= */
 const MISSIONS = [
   {id:'dist1',  stat:'bestDist',     base:60,  targets:[300,600,1000,1500,2500,4000,6000], text:n => `Lauf ${fmt(n)} m in einem Lauf`},
@@ -401,15 +453,19 @@ const MISSIONS = [
   {id:'slides', stat:'slides',       base:40,  targets:[20,60,150,400,800,1500], text:n => `Rutsch ${fmt(n)} Mal`},
   {id:'power',  stat:'powerups',     base:50,  targets:[3,10,25,60,150,300], text:n => `Sammle ${fmt(n)} Power-ups`},
   {id:'escape', stat:'escapes',      base:70,  targets:[2,8,25,60,120], text:n => `Entkomme ${fmt(n)} Mal nach einem Stolperer`},
+  {id:'turns',  stat:'turns',        base:50,  targets:[3,10,30,80,200], text:n => `Biege ${fmt(n)} Mal an Kreuzungen ab`},
+  {id:'roof',   stat:'roofDist',     base:60,  targets:[100,500,1500,4000,10000], text:n => `Lauf ${fmt(n)} m auf Zugdächern`},
+  {id:'worlds', stat:'worldMax',     base:150, targets:[1,2,3,4,5], text:n => `Erreiche die Welt „${WORLDS[n].name}“`},
   {id:'runs',   stat:'runs',         base:40,  targets:[3,10,25,50,100,200], text:n => `Spiele ${fmt(n)} Läufe`},
   {id:'crates', stat:'cratesOpened', base:50,  targets:[1,5,15,40,80], text:n => n === 1 ? 'Öffne deine erste Kiste' : `Öffne ${fmt(n)} Kisten`},
   {id:'skins',  stat:'skinsOwned',   base:100, targets:[3,5,8,12,16,20], text:n => `Besitze ${fmt(n)} Skins`},
 ];
 const missionReward = (m, lvl) => ({coins: m.base*(lvl + 1), crates: lvl % 2 === 1 ? 1 : 0});
 
-/* ================= Save slots ================= */
+/* ================= Save slots (browser + cloud) ================= */
 const SLOT_COUNT = 3;
 const slotKey = i => 'mouadz_escapes_trump_slot' + i;
+const slotCache = [];
 function defaultSave(){
   return {v:2, coins:0, best:0, owned:['mouadz'], skin:'mouadz', chOwned:['classic'], chaser:'classic',
           muted:false, crates:1, stats:{}, missions:{}, savedAt:0};
@@ -429,7 +485,12 @@ function sanitize(o){
   return d;
 }
 function readSlot(i){
-  try{ const r = localStorage.getItem(slotKey(i)); return r ? sanitize(JSON.parse(r)) : null; }catch(e){ return null; }
+  try{ const r = localStorage.getItem(slotKey(i)); if (r) return sanitize(JSON.parse(r)); }catch(e){}
+  return slotCache[i] ? sanitize(slotCache[i]) : null;
+}
+function writeSlot(i, d){
+  slotCache[i] = JSON.parse(JSON.stringify(d));
+  try{ localStorage.setItem(slotKey(i), JSON.stringify(d)); }catch(e){}
 }
 function migrateV1(){
   try{
@@ -443,9 +504,10 @@ try{ slot = Math.min(SLOT_COUNT - 1, Math.max(0, parseInt(localStorage.getItem('
 let save = readSlot(slot) || (slot === 0 && migrateV1()) || defaultSave();
 function persist(){
   save.savedAt = Date.now();
-  try{ localStorage.setItem(slotKey(slot), JSON.stringify(save)); localStorage.setItem('mouadz_active_slot', String(slot)); }catch(e){}
+  writeSlot(slot, save);
+  try{ localStorage.setItem('mouadz_active_slot', String(slot)); }catch(e){}
+  queueCloudSave();
 }
-persist();
 function exportCode(){
   try{ return 'MET1-' + btoa(unescape(encodeURIComponent(JSON.stringify(save)))); }catch(e){ return ''; }
 }
@@ -456,6 +518,75 @@ function importCode(code){
   if (!data || typeof data !== 'object' || data.v !== 2) throw new Error('format');
   return sanitize(data);
 }
+
+// Cloud save: one private document per player (data/users/<id>/game), kept by claude.ai.
+const cloud = {ref:null, ready:false, writing:false, again:false, status:'local', timer:0};
+function cloudDoc(){
+  const slots = {};
+  for (let i = 0; i < SLOT_COUNT; i++){ const d = i === slot ? save : readSlot(i); if (d) slots['s' + i] = d; }
+  return {v:2, active:slot, updatedAt:Date.now(), slots};
+}
+function queueCloudSave(){
+  if (!cloud.ready) return;
+  clearTimeout(cloud.timer); cloud.timer = setTimeout(flushCloud, 1200);
+}
+async function flushCloud(){
+  if (!cloud.ready) return;
+  if (cloud.writing){ cloud.again = true; return; }
+  cloud.writing = true;
+  try{ await cloud.ref.set(cloudDoc()); cloud.status = 'cloud'; }
+  catch(e){
+    const code = e && e.code;
+    cloud.status = code === 'invalid_argument' ? 'denied' : 'error';
+    if (code === 'invalid_argument' || code === 'revoked' || code === 'not_granted') cloud.ready = false;
+  }
+  cloud.writing = false;
+  updateCloudStatus();
+  if (cloud.again){ cloud.again = false; queueCloudSave(); }
+}
+function mergeCloud(data){
+  if (!data || typeof data !== 'object' || !data.slots || typeof data.slots !== 'object') return false;
+  let replaced = false;
+  for (let i = 0; i < SLOT_COUNT; i++){
+    const raw = data.slots['s' + i]; if (!raw) continue;
+    const remote = sanitize(raw), local = i === slot ? save : readSlot(i);
+    if (!local || remote.savedAt > local.savedAt){
+      writeSlot(i, remote);
+      if (i === slot){ save = remote; replaced = true; }
+    }
+  }
+  const ra = data.active;
+  if (Number.isInteger(ra) && ra >= 0 && ra < SLOT_COUNT && ra !== slot){
+    const r = readSlot(ra);
+    if (r && r.savedAt > save.savedAt){
+      slot = ra; save = r; replaced = true;
+      try{ localStorage.setItem('mouadz_active_slot', String(slot)); }catch(e){}
+    }
+  }
+  return replaced;
+}
+async function initCloud(){
+  try{
+    if (!window.claude || typeof window.claude.use !== 'function'){ updateCloudStatus(); return; }
+    cloud.status = 'loading'; updateCloudStatus();
+    const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
+    if (!db || !user){ cloud.status = 'local'; updateCloudStatus(); return; }
+    const uid = await user.id();
+    if (!uid){ cloud.status = 'local'; updateCloudStatus(); return; }
+    cloud.ref = db.doc('data/users/' + uid + '/game');
+    let snap;
+    try{ snap = await cloud.ref.get(); }
+    catch(e){ await new Promise(r => setTimeout(r, 600 + Math.random()*800)); snap = await cloud.ref.get(); }
+    if (snap.exists && mergeCloud(snap.data())) onSaveReplaced();
+    cloud.ready = true; cloud.status = 'cloud';
+    flushCloud();
+  }catch(e){ cloud.status = 'error'; }
+  updateCloudStatus();
+}
+window.addEventListener('pagehide', () => {
+  writeSlot(slot, save);
+  if (cloud.ready){ clearTimeout(cloud.timer); flushCloud(); }
+});
 
 /* ================= Stats & missions ================= */
 function addStat(k, n){ save.stats[k] = (save.stats[k] || 0) + n; }
@@ -495,6 +626,7 @@ function sfx(type){
       case 'power': o.type='sine'; o.frequency.setValueAtTime(520,t); o.frequency.setValueAtTime(780,t+.07); o.frequency.setValueAtTime(1040,t+.14); env(.12,.3); break;
       case 'buy':   o.type='square'; o.frequency.setValueAtTime(660,t); o.frequency.setValueAtTime(990,t+.08); o.frequency.setValueAtTime(1320,t+.16); env(.06,.32); break;
       case 'siren': o.type='square'; o.frequency.setValueAtTime(700,t); o.frequency.linearRampToValueAtTime(950,t+.25); o.frequency.linearRampToValueAtTime(700,t+.5); env(.03,.55); break;
+      case 'horn':  o.type='square'; o.frequency.setValueAtTime(330,t); o.frequency.setValueAtTime(415,t+.3); env(.07,.7); break;
       case 'fired': o.type='sawtooth'; o.frequency.setValueAtTime(180,t); o.frequency.exponentialRampToValueAtTime(45,t+.9); env(.18,.95); break;
     }
   }catch(e){}
@@ -519,13 +651,8 @@ function canvasTex(w, h, draw){
   t.anisotropy = 4;
   return t;
 }
-scene.background = canvasTex(4, 256, (g, w, h) => {
-  const gr = g.createLinearGradient(0, 0, 0, h);
-  gr.addColorStop(0, '#141a45'); gr.addColorStop(.45, '#4a2f6e'); gr.addColorStop(.75, '#c4587a'); gr.addColorStop(1, '#ff9e62');
-  g.fillStyle = gr; g.fillRect(0, 0, w, h);
-});
 scene.fog = new THREE.Fog(0xb5607a, 40, 170);
-scene.add(new THREE.HemisphereLight(0xffe2c8, 0x3a3060, 0.95));
+const hemi = new THREE.HemisphereLight(0xffe2c8, 0x3a3060, 0.95); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffd2a8, 0.75); sun.position.set(-6, 12, -8); scene.add(sun);
 
 const matCache = {};
@@ -553,8 +680,12 @@ function plane(w, h, tex, x, y, z, ry, parent, transparent){
   m.position.set(x, y, z); m.rotation.y = ry || 0; if (parent) parent.add(m); return m;
 }
 
-/* ================= World ================= */
+/* ================= World scenery ================= */
 const LANES = [-2.2, 0, 2.2];
+// turnG pivots the whole street around the runner when turning at a crossing
+const turnG = new THREE.Group(), worldG = new THREE.Group(); turnG.add(worldG); scene.add(turnG);
+const pick = a => a[(Math.random()*a.length)|0];
+
 const roadTex = canvasTex(256, 256, (g, w, h) => {
   g.fillStyle = '#35374b'; g.fillRect(0, 0, w, h);
   for (let i = 0; i < 1600; i++){ g.fillStyle = `rgba(255,255,255,${Math.random()*.05})`; g.fillRect(Math.random()*w, Math.random()*h, 2, 2); }
@@ -563,47 +694,59 @@ const roadTex = canvasTex(256, 256, (g, w, h) => {
   g.fillRect(w/3 - 3, 0, 6, h*0.5); g.fillRect(2*w/3 - 3, 0, 6, h*0.5);
 });
 roadTex.wrapS = roadTex.wrapT = THREE.RepeatWrapping; roadTex.repeat.set(1, 40);
-const road = new THREE.Mesh(new THREE.PlaneGeometry(6.6, 400), new THREE.MeshLambertMaterial({map: roadTex}));
-road.rotation.x = -Math.PI/2; road.position.z = -120; scene.add(road);
+const roadMat = new THREE.MeshLambertMaterial({map: roadTex});
+const road = new THREE.Mesh(new THREE.PlaneGeometry(6.6, 400), roadMat);
+road.rotation.x = -Math.PI/2; road.position.z = -120; worldG.add(road);
 
 const walkTex = canvasTex(128, 128, (g, w, h) => {
   g.fillStyle = '#9b97a8'; g.fillRect(0, 0, w, h);
   g.strokeStyle = '#7d798c'; g.lineWidth = 3;
   for (let i = 0; i <= 2; i++){ g.beginPath(); g.moveTo(0, i*h/2); g.lineTo(w, i*h/2); g.stroke(); g.beginPath(); g.moveTo(i*w/2, 0); g.lineTo(i*w/2, h); g.stroke(); }
 });
-walkTex.wrapS = walkTex.wrapT = THREE.RepeatWrapping; walkTex.repeat.set(1, 133);
-for (const s of [-1, 1]){
-  const sw = new THREE.Mesh(new THREE.BoxGeometry(3, 0.25, 400), new THREE.MeshLambertMaterial({map: walkTex}));
-  sw.position.set(s*4.8, 0.125, -120); scene.add(sw);
+walkTex.wrapS = walkTex.wrapT = THREE.RepeatWrapping;
+const tileTex = walkTex.clone(); tileTex.needsUpdate = true; tileTex.repeat.set(1, 5/3);
+const walkMat = new THREE.MeshLambertMaterial({map: tileTex});
+const TILE_LEN = 5, TILE_N = 80;
+const tileGeo = new THREE.BoxGeometry(3, .25, 1);
+const tiles = [];
+for (const side of [-1, 1]) for (let i = 0; i < TILE_N; i++){
+  const t = new THREE.Mesh(tileGeo, walkMat); t.position.set(side*4.8, .125, 0); t.scale.z = TILE_LEN;
+  t.userData = {side, z:0, idx:i}; worldG.add(t); tiles.push(t);
 }
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 400), lam(0x2a2540));
-ground.rotation.x = -Math.PI/2; ground.position.set(0, -0.02, -120); scene.add(ground);
+const groundMat = new THREE.MeshLambertMaterial({color: 0x2a2540});
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), groundMat);
+ground.rotation.x = -Math.PI/2; ground.position.set(0, -0.02, -100); scene.add(ground);
 
-const BUILD_COLORS = ['#3b3f6b','#5a3d5c','#2e4a62','#6b4a3a','#4a4f5f','#384a40','#6a3846'];
-const buildings = [];
-function makeBuilding(side){
-  const w = 4 + Math.random()*4, d = 6 + Math.random()*8, h = 7 + Math.random()*18;
-  const base = BUILD_COLORS[(Math.random()*BUILD_COLORS.length)|0];
-  const cols = Math.max(2, Math.round(d/1.6)), rows = Math.max(3, Math.round(h/2));
-  const tex = canvasTex(cols*16, rows*16, (g, W, H) => {
-    g.fillStyle = base; g.fillRect(0, 0, W, H);
+// --- buildings
+function buildingSize(W){ return {w: 4 + Math.random()*4, d: 6 + Math.random()*8, h: W.low ? 3 + Math.random()*5 : 7 + Math.random()*18}; }
+function makeWindowTex(W, cols, rows){
+  const base = pick(W.buildings);
+  return canvasTex(cols*16, rows*16, (g, Wd, H) => {
+    g.fillStyle = base; g.fillRect(0, 0, Wd, H);
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++){
-      g.fillStyle = Math.random() < .45 ? (Math.random() < .5 ? '#ffd98a' : '#ffe9b8') : '#1b1d33';
+      g.fillStyle = Math.random() < W.litChance ? pick(W.lit) : W.dark;
       g.fillRect(c*16 + 4, r*16 + 4, 8, 9);
     }
   });
+}
+function makeBuildingMesh(W, sx, h, sz){
+  const tex = makeWindowTex(W, Math.max(2, Math.round(Math.max(sx, sz)/1.6)), Math.max(2, Math.round(h/2)));
   const m = new THREE.Mesh(boxGeo, new THREE.MeshLambertMaterial({map: tex}));
-  m.scale.set(w, h, d); m.position.set(side*(6.4 + w/2), h/2, 0);
-  m.userData = {side, d};
-  scene.add(m); buildings.push(m);
-  return m;
+  m.scale.set(sx, h, sz); m.userData.tex = tex; return m;
 }
-for (const side of [-1, 1]){
-  let z = 70;
-  for (let i = 0; i < 20; i++){ const b = makeBuilding(side); b.position.z = z - b.userData.d/2; z -= b.userData.d + Math.random()*1.5; }
+const buildings = [];
+function skinMainBuilding(b){
+  const W = WORLDS[worldIdx], s = buildingSize(W);
+  if (b.userData.tex) b.userData.tex.dispose();
+  const tex = makeWindowTex(W, Math.max(2, Math.round(s.d/1.6)), Math.max(2, Math.round(s.h/2)));
+  b.material.map = tex; b.material.needsUpdate = true; b.userData.tex = tex;
+  b.scale.set(s.w, s.h, s.d); b.position.x = b.userData.side*(6.4 + s.w/2); b.position.y = s.h/2;
+  b.userData.d = s.d; b.userData.world = worldIdx;
 }
-const props = [];
+
+// --- lamps & decorations (per world)
 const PROP_SPACING = 16, PROP_COUNT = 17;
+const props = [];
 function makeLamp(side){
   const g = new THREE.Group();
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(.07, .09, 4.2, 6), lam(0x2b2d3a)); pole.position.y = 2.1; g.add(pole);
@@ -611,26 +754,170 @@ function makeLamp(side){
   const bulb = new THREE.Mesh(new THREE.SphereGeometry(.17, 8, 6), basic(0xffe7a0)); bulb.position.set(-side*.8, 4.02, 0); g.add(bulb);
   g.position.x = side*3.7; return g;
 }
-function makeTree(side){
+const goldMat = new THREE.MeshPhongMaterial({color:0xffcf3a, shininess:90, specular:0xfff0a0, emissive:0x3a2600});
+function makeDeco(kind, side){
   const g = new THREE.Group();
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.12, .16, 1.4, 6), lam(0x5a3b26)); trunk.position.y = .95; g.add(trunk);
-  const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 0), lam(0x2f7a4a)); crown.position.y = 2.3; crown.scale.set(1, 1.15, 1); g.add(crown);
+  if (kind === 'neon'){
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, 3.2, 6), lam(0x22232e)); pole.position.y = 1.6; g.add(pole);
+    box(.14, .9, 1.7, basic(pick([0xff3fd2, 0x3ff6ff, 0xffe066, 0x7dff7a])), 0, 3.0, 0, g);
+  } else if (kind === 'cactus'){
+    const m = lam(0x3f8f4a);
+    const t = new THREE.Mesh(new THREE.CylinderGeometry(.22, .26, 2.2, 8), m); t.position.y = 1.1; g.add(t);
+    for (const sx of [-1, 1]){
+      const yb = sx > 0 ? 1.25 : .9;
+      const a = new THREE.Mesh(new THREE.CylinderGeometry(.13, .13, .8, 6), m); a.position.set(sx*.45, yb + .4, 0); g.add(a);
+      box(.4, .18, .18, m, sx*.27, yb, 0, g);
+    }
+  } else if (kind === 'pine'){
+    const tr = new THREE.Mesh(new THREE.CylinderGeometry(.12, .16, .9, 6), lam(0x5a3b26)); tr.position.y = .45; g.add(tr);
+    for (const [r, h, y] of [[1.1, 1.2, 1.1], [.85, 1.0, 1.8], [.6, .9, 2.45]]){ const c = new THREE.Mesh(new THREE.ConeGeometry(r, h, 8), lam(0x1f5a3a)); c.position.y = y; g.add(c); }
+    const cap = new THREE.Mesh(new THREE.ConeGeometry(.36, .42, 8), lam(0xffffff)); cap.position.y = 2.82; g.add(cap);
+  } else if (kind === 'palm'){
+    let y = 0, x = 0;
+    for (let i = 0; i < 5; i++){
+      const s = new THREE.Mesh(new THREE.CylinderGeometry(.13, .16, .82, 6), lam(0x8a6a3a));
+      x -= side*.09; s.position.set(x, y + .41, 0); s.rotation.z = side*.11; g.add(s); y += .78;
+    }
+    for (let i = 0; i < 6; i++){
+      const a = i/6*Math.PI*2;
+      const leaf = box(1.6, .06, .36, lam(0x2f9a4a), x + Math.cos(a)*.7, y + .02, Math.sin(a)*.7, g);
+      leaf.rotation.set(0, -a, -.32);
+    }
+    for (let i = 0; i < 3; i++){ const c = new THREE.Mesh(new THREE.SphereGeometry(.12, 6, 5), lam(0x5a3a1a)); c.position.set(x + Math.cos(i*2.1)*.18, y - .15, Math.sin(i*2.1)*.18); g.add(c); }
+  } else if (kind === 'goldtree'){
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.12, .16, 1.4, 6), goldMat); trunk.position.y = .95; g.add(trunk);
+    const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 0), goldMat); crown.position.y = 2.3; crown.scale.set(1, 1.15, 1); g.add(crown);
+  } else {
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.12, .16, 1.4, 6), lam(0x5a3b26)); trunk.position.y = .95; g.add(trunk);
+    const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 0), lam(0x2f7a4a)); crown.position.y = 2.3; crown.scale.set(1, 1.15, 1); g.add(crown);
+  }
   g.position.x = side*5.6; return g;
 }
-for (const side of [-1, 1]) for (let i = 0; i < PROP_COUNT; i++){
-  const l = makeLamp(side); l.position.z = 70 - i*PROP_SPACING; scene.add(l); props.push(l);
-  const t = makeTree(side); t.position.z = 70 - i*PROP_SPACING - PROP_SPACING/2; scene.add(t); props.push(t);
+function disposeGroup(g){ g.traverse(o => { if (o.geometry && o.geometry !== boxGeo && o.geometry !== tileGeo) o.geometry.dispose(); }); }
+function replaceDeco(k){
+  const p = props[k], n = makeDeco(WORLDS[worldIdx].prop, p.userData.side);
+  n.position.copy(p.position); n.visible = p.visible; n.userData = Object.assign({}, p.userData, {world: worldIdx});
+  worldG.remove(p); disposeGroup(p); worldG.add(n); props[k] = n;
 }
+
+// --- palette (sky, fog, light, ground) blends between worlds
+const skyCanvas = document.createElement('canvas'); skyCanvas.width = 4; skyCanvas.height = 256;
+const skyCtx = skyCanvas.getContext('2d'); const skyTex = new THREE.CanvasTexture(skyCanvas);
+scene.background = skyTex;
+function worldPalette(W){
+  const C = c => new THREE.Color(c);
+  return {sky: W.sky.map(C), fog: C(W.fog), hemiSky: C(W.hemiSky), hemiGround: C(W.hemiGround), ground: C(W.ground), walk: C(W.walk), road: C(W.road), hemiI: W.hemiI};
+}
+const PAL_KEYS = ['fog', 'hemiSky', 'hemiGround', 'ground', 'walk', 'road'];
+function lerpPal(a, b, t){
+  const o = {sky: a.sky.map((c, i) => c.clone().lerp(b.sky[i], t)), hemiI: a.hemiI + (b.hemiI - a.hemiI)*t};
+  for (const k of PAL_KEYS) o[k] = a[k].clone().lerp(b[k], t);
+  return o;
+}
+function applyPalette(p){
+  const gr = skyCtx.createLinearGradient(0, 0, 0, 256);
+  [0, .45, .75, 1].forEach((s, i) => gr.addColorStop(s, '#' + p.sky[i].getHexString()));
+  skyCtx.fillStyle = gr; skyCtx.fillRect(0, 0, 4, 256); skyTex.needsUpdate = true;
+  scene.fog.color.copy(p.fog); hemi.color.copy(p.hemiSky); hemi.groundColor.copy(p.hemiGround); hemi.intensity = p.hemiI;
+  groundMat.color.copy(p.ground); walkMat.color.copy(p.walk); roadMat.color.copy(p.road);
+}
+let worldIdx = 0;
+let palCur = worldPalette(WORLDS[0]), palFrom = palCur, palTo = palCur, palT = 1;
+applyPalette(palCur);
+
+for (const side of [-1, 1]){
+  for (let i = 0; i < 20; i++){ const b = new THREE.Mesh(boxGeo, new THREE.MeshLambertMaterial()); b.userData = {side}; skinMainBuilding(b); worldG.add(b); buildings.push(b); }
+  for (let i = 0; i < PROP_COUNT; i++){
+    const l = makeLamp(side); l.userData = {side, kind:'lamp'}; worldG.add(l); props.push(l);
+    const t = makeDeco(WORLDS[0].prop, side); t.userData = {side, kind:'deco', world:0}; worldG.add(t); props.push(t);
+  }
+}
+function layoutMain(bStart, tStart){
+  for (const side of [-1, 1]){
+    let z = bStart;
+    for (const b of buildings) if (b.userData.side === side){ b.position.z = z - b.userData.d/2; z -= b.userData.d + Math.random()*1.5; b.visible = true; }
+    let li = 0, di = 0, ti = 0;
+    for (const p of props) if (p.userData.side === side){
+      p.position.z = p.userData.kind === 'lamp' ? bStart - (li++)*PROP_SPACING : bStart - PROP_SPACING/2 - (di++)*PROP_SPACING;
+      p.visible = true;
+    }
+    for (const t of tiles) if (t.userData.side === side){ t.userData.z = tStart - TILE_LEN/2 - (ti++)*TILE_LEN; }
+  }
+}
+function setWorld(i, instant){
+  worldIdx = i; const W = WORLDS[i];
+  palTo = worldPalette(W);
+  const pill = $('worldPill'); if (pill) pill.textContent = `${W.emoji} ${W.name}`;
+  if (instant){
+    palCur = palTo; palFrom = palTo; palT = 1; applyPalette(palCur);
+    for (const b of buildings) skinMainBuilding(b);
+    props.forEach((p, k) => { if (p.userData.kind === 'deco') replaceDeco(k); });
+    layoutMain(70, 80);
+  } else {
+    palFrom = palCur; palT = 0;
+    showWorldBanner(W); sfx('power');
+  }
+}
+function updatePalette(dt){
+  if (palT >= 1) return;
+  palT = Math.min(1, palT + dt/2.5);
+  palCur = lerpPal(palFrom, palTo, palT*palT*(3 - 2*palT));
+  applyPalette(palCur);
+}
+
+// --- snow for the winter world
+const SNOW_N = 700, snowPos = new Float32Array(SNOW_N*3);
+for (let i = 0; i < SNOW_N; i++){ snowPos[i*3] = (Math.random() - .5)*30; snowPos[i*3 + 1] = Math.random()*14; snowPos[i*3 + 2] = -40 + Math.random()*50; }
+const snowGeo = new THREE.BufferGeometry(); snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
+const snowMat = new THREE.PointsMaterial({color:0xffffff, size:.16, transparent:true, opacity:0, depthWrite:false});
+const snow = new THREE.Points(snowGeo, snowMat); snow.frustumCulled = false; scene.add(snow);
+function updateSnow(dt, speed){
+  const target = WORLDS[worldIdx].snow ? .9 : 0;
+  snowMat.opacity += (target - snowMat.opacity)*Math.min(1, dt*1.5);
+  snow.visible = snowMat.opacity > .01;
+  if (!snow.visible) return;
+  for (let i = 0; i < SNOW_N; i++){
+    snowPos[i*3 + 1] -= dt*(2 + (i % 5)*.3);
+    snowPos[i*3] += Math.sin(i + snowPos[i*3 + 1])*dt*.3;
+    snowPos[i*3 + 2] += speed*dt*.35;
+    if (snowPos[i*3 + 1] < 0) snowPos[i*3 + 1] += 14;
+    if (snowPos[i*3 + 2] > 10) snowPos[i*3 + 2] -= 50;
+  }
+  snowGeo.attributes.position.needsUpdate = true;
+}
+
+// --- scrolling: everything in worldG moves toward the camera (+z)
 function scrollWorld(d){
-  roadTex.offset.y += d/10; walkTex.offset.y += d/3;
-  for (const p of props){ p.position.z += d; if (p.position.z > 70) p.position.z -= PROP_COUNT*PROP_SPACING; }
+  roadTex.offset.y += d/10;
+  if (G.junction) G.junction.J.position.z += d;
+  const J = G.junction && !G.junction.turned ? G.junction.J : null;
+  const lim = J ? J.position.z + 6.3 : -Infinity;
+  for (let k = 0; k < props.length; k++){
+    let p = props[k];
+    p.position.z += d;
+    if (p.position.z > 70){
+      p.position.z -= PROP_COUNT*PROP_SPACING;
+      if (p.userData.kind === 'deco' && p.userData.world !== worldIdx){ replaceDeco(k); p = props[k]; }
+    }
+    p.visible = !J || p.position.z > lim;
+  }
   for (const b of buildings){
     b.position.z += d;
     if (b.position.z - b.userData.d/2 > 70){
+      if (b.userData.world !== worldIdx) skinMainBuilding(b);
       let minZ = Infinity;
       for (const o of buildings) if (o.userData.side === b.userData.side && o !== b) minZ = Math.min(minZ, o.position.z - o.userData.d/2);
       b.position.z = minZ - Math.random()*1.5 - b.userData.d/2;
     }
+    b.visible = !J || b.position.z - b.userData.d/2 > lim + 16;
+  }
+  for (const t of tiles){
+    const u = t.userData; u.z += d;
+    if (u.z - TILE_LEN/2 > 80) u.z -= TILE_N*TILE_LEN;
+    const near = u.z + TILE_LEN/2, far = u.z - TILE_LEN/2;
+    if (!J || far >= lim){ t.visible = true; t.position.z = u.z; t.scale.z = TILE_LEN; }
+    else if (near <= lim){ t.visible = false; }
+    else { t.visible = true; t.position.z = (near + lim)/2; t.scale.z = near - lim; }
   }
 }
 
@@ -1014,8 +1301,26 @@ const coinMat = new THREE.MeshPhongMaterial({color:0xffc83d, emissive:0x6a4200, 
 const wheelGeo = new THREE.CylinderGeometry(.45, .45, .3, 12); wheelGeo.rotateZ(Math.PI/2);
 
 let objs = [];
-function addObj(o){ scene.add(o.mesh); objs.push(o); return o; }
-const BLOCKING = t => t === 'wall' || t === 'bus' || t === 'ice';
+function addObj(o){ worldG.add(o.mesh); objs.push(o); return o; }
+const BLOCKING = t => t === 'wall' || t === 'bus' || t === 'ice' || t === 'train' || t === 'mtrain';
+const TRAIN_H = 2.6, TRAIN_LEN = 14;
+const trainTexCache = {};
+function trainTex(color){
+  if (trainTexCache[color]) return trainTexCache[color];
+  const side = canvasTex(512, 128, (g, w, h) => {
+    g.fillStyle = color; g.fillRect(0, 0, w, h);
+    g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(0, h - 26, w, 26);
+    g.fillStyle = '#ffffff'; g.fillRect(0, h - 34, w, 6);
+    g.fillStyle = '#1d2433'; for (let i = 0; i < 9; i++) g.fillRect(18 + i*55, 20, 40, 46);
+  });
+  const front = canvasTex(128, 128, (g, w, h) => {
+    g.fillStyle = color; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#1d2433'; g.fillRect(14, 14, w - 28, 46);
+    g.fillStyle = '#fff6c0'; g.beginPath(); g.arc(26, 90, 10, 0, 7); g.arc(w - 26, 90, 10, 0, 7); g.fill();
+    g.fillStyle = '#ffffff'; g.fillRect(0, h - 30, w, 6);
+  });
+  return trainTexCache[color] = {side, front};
+}
 function makeObstacle(type, lane, z){
   const x = LANES[lane], g = new THREE.Group();
   let o;
@@ -1046,6 +1351,25 @@ function makeObstacle(type, lane, z){
     box(.5, .14, .3, sirenRed, -.3, 2.35, 0, g); box(.5, .14, .3, sirenBlue, .3, 2.35, 0, g);
     for (const sx of [-.9, .9]) for (const sz of [-1.4, 1.4]){ const w = new THREE.Mesh(wheelGeo, lam(0x151515)); w.position.set(sx, .45, sz); g.add(w); }
     o = {type, hw:1.0, hd:2.2, y0:0, y1:2.45};
+  } else if (type === 'train' || type === 'mtrain'){
+    const tx = trainTex(WORLDS[worldIdx].train);
+    const sideM = new THREE.MeshLambertMaterial({map: tx.side}), frontM = new THREE.MeshLambertMaterial({map: tx.front});
+    const body = new THREE.Mesh(boxGeo, [sideM, sideM, lam(0x9aa0aa), lam(0x222222), frontM, frontM]);
+    body.scale.set(2.0, TRAIN_H - .3, TRAIN_LEN); body.position.y = .3 + (TRAIN_H - .3)/2; g.add(body);
+    box(1.7, .3, TRAIN_LEN - 1, lam(0x1a1a1a), 0, .15, 0, g);
+    if (type === 'mtrain') for (const sx of [-.62, .62]){
+      const l = new THREE.Mesh(new THREE.SphereGeometry(.17, 8, 6), basic(0xfff3b0)); l.position.set(sx, .95, TRAIN_LEN/2 + .03); g.add(l);
+    }
+    o = {type, hw:1.0, hd:TRAIN_LEN/2, y0:0, y1:TRAIN_H - .4, vz: type === 'mtrain' ? 11 : 0};
+  } else if (type === 'ramp'){
+    const ang = Math.atan2(TRAIN_H, 5.2), len = Math.hypot(TRAIN_H, 5.2);
+    box(1.9, .14, len, lam(0x5a5f6a), 0, TRAIN_H/2, 0, g).rotation.x = ang;
+    for (const sx of [-.95, .95]) box(.08, .22, len, lam(0xffc21a), sx, TRAIN_H/2 + .06, 0, g).rotation.x = ang;
+    for (const k of [-1.6, 0, 1.6]){
+      const hh = TRAIN_H*(2.6 - k)/5.2 - .1;
+      box(.12, hh, .12, lam(0x2b2d3a), -.8, hh/2, k, g); box(.12, hh, .12, lam(0x2b2d3a), .8, hh/2, k, g);
+    }
+    o = {type, hw:1.0, hd:2.6, y0:0, y1:0};
   } else {
     const sideM = new THREE.MeshLambertMaterial({map: busSide}), frontM = new THREE.MeshLambertMaterial({map: busFront});
     const bus = new THREE.Mesh(boxGeo, [sideM, sideM, lam(0xffc21a), lam(0x222222), frontM, frontM]);
@@ -1056,6 +1380,19 @@ function makeObstacle(type, lane, z){
   g.position.set(x, 0, z);
   o.mesh = g; o.lane = lane; o.kind = 'obstacle';
   return addObj(o);
+}
+// Height of what you can stand on at (x, z): train roofs and ramps
+function groundAt(x, z){
+  let h = 0, ramp = false;
+  for (const o of objs){
+    if (o.kind !== 'obstacle' || o.hit || (o.type !== 'train' && o.type !== 'ramp')) continue;
+    const p = o.mesh.position;
+    if (Math.abs(p.x - x) > .95) continue;
+    const dz = z - p.z;
+    if (o.type === 'train'){ if (Math.abs(dz) < o.hd + .05 && TRAIN_H > h){ h = TRAIN_H; ramp = false; } }
+    else if (Math.abs(dz) <= 2.6){ const v = TRAIN_H*(2.6 - dz)/5.2; if (v > h){ h = v; ramp = true; } }
+  }
+  return {h, ramp};
 }
 function makeCoin(lane, z, y){
   const m = new THREE.Mesh(coinGeo, coinMat); m.position.set(LANES[lane], y, z);
@@ -1085,7 +1422,7 @@ function makePower(type, lane, z){
   g.position.set(LANES[lane], 1.0, z);
   return addObj({kind:'power', type, mesh:g, inner});
 }
-function clearObjs(){ for (const o of objs) scene.remove(o.mesh); objs = []; }
+function clearObjs(){ for (const o of objs) worldG.remove(o.mesh); objs = []; }
 function coinLine(lane, zStart, n, shape){
   for (let i = 0; i < n; i++){
     const z = zStart - i*2.2;
@@ -1099,73 +1436,179 @@ function coinLine(lane, zStart, n, shape){
 /* ================= Game state ================= */
 const G = {};
 let state = 'menu';
+const JL = 60; // length of a side street at a crossing
+
+function removeJunction(J){
+  worldG.remove(J);
+  J.traverse(o => {
+    if (o.geometry && o.geometry !== boxGeo && o.geometry !== tileGeo) o.geometry.dispose();
+    if (o.userData && o.userData.tex){ o.userData.tex.dispose(); o.material.dispose(); }
+  });
+  for (const t of J.userData.textures) t.dispose();
+}
+// A crossing: T (both ways), L (only left) or R (only right). Local frame: main road comes from +z.
+function buildJunction(kind){
+  const W = WORLDS[worldIdx], J = new THREE.Group();
+  const ud = J.userData = {kind, open:{'-1': kind !== 'R', '1': kind !== 'L'}, branchRoads:[], post:[], textures:[]};
+  const asphalt = new THREE.Color(0x35374b).multiply(new THREE.Color(W.road));
+  const sq = new THREE.Mesh(new THREE.PlaneGeometry(6.6, 6.6), new THREE.MeshLambertMaterial({color: asphalt}));
+  sq.rotation.x = -Math.PI/2; sq.position.y = .012; J.add(sq);
+  for (let i = 0; i < 6; i++){ const s = new THREE.Mesh(new THREE.PlaneGeometry(.55, 1.5), lam(0xe9e6dc)); s.rotation.x = -Math.PI/2; s.position.set(-2.75 + i*1.1, .014, 4.4); J.add(s); }
+  const walkBox = (len, x, z, alongX, post) => {
+    const tex = walkTex.clone(); tex.needsUpdate = true; tex.repeat.set(alongX ? len/3 : 1, alongX ? 1 : len/3); ud.textures.push(tex);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(alongX ? len : 3, .25, alongX ? 3 : len), new THREE.MeshLambertMaterial({map: tex, color: W.walk}));
+    m.position.set(x, .125, z); J.add(m);
+    if (post){ m.visible = false; ud.post.push(m); }
+    return m;
+  };
+  const roadStrip = (len, x, z, alongX, post) => {
+    const tex = roadTex.clone(); tex.needsUpdate = true; tex.offset.set(0, 0); tex.repeat.set(1, len/10); ud.textures.push(tex);
+    const rg = new THREE.Group(); rg.position.set(x, 0, z); if (alongX) rg.rotation.y = Math.PI/2; J.add(rg);
+    const rd = new THREE.Mesh(new THREE.PlaneGeometry(6.6, len), new THREE.MeshLambertMaterial({map: tex, color: W.road}));
+    rd.rotation.x = -Math.PI/2; rd.position.y = .01; rg.add(rd);
+    if (post){ rd.visible = false; ud.post.push(rd); }
+    return rd;
+  };
+  const bh = () => W.low ? 3 + Math.random()*5 : 7 + Math.random()*18;
+  const bld = (x, z, sx, sz, h, post) => {
+    const m = makeBuildingMesh(W, sx, h, sz); m.position.set(x, h/2, z); J.add(m);
+    if (post){ m.visible = false; ud.post.push(m); }
+    return m;
+  };
+  const rowAlongX = (dir, zSide, x0, x1) => {
+    for (let x = x0; x < x1;){ const len = 6 + Math.random()*8, dep = 4 + Math.random()*4; bld(dir*(x + len/2), zSide*(6.4 + dep/2), len, dep, bh()); x += len + Math.random()*1.2; }
+  };
+  const rowAlongZ = (side, z0, z1, post) => {
+    for (let z = z0; z < z1;){ const len = 6 + Math.random()*6, dep = 4 + Math.random()*4; bld(side*(6.4 + dep/2), z + len/2, dep, len, bh(), post); z += len + Math.random()*1.2; }
+  };
+  for (const dir of [-1, 1]){
+    if (ud.open[dir]){
+      ud.branchRoads.push(roadStrip(JL, dir*(3.3 + JL/2), 0, true));
+      walkBox(JL, dir*(3.3 + JL/2), -4.8, true);
+      walkBox(JL, dir*(3.3 + JL/2), 4.8, true);
+      rowAlongX(dir, -1, 6.3, 6.3 + JL);
+      rowAlongX(dir, 1, 14.6, 6.3 + JL);
+    } else {
+      walkBox(12.6, dir*4.8, 0, false);
+      bld(dir*11.4, -6.3, 10, 25.2, Math.max(9, bh()));
+    }
+  }
+  walkBox(6.6, 0, -4.8, true);
+  bld(0, -6.4 - 8, 13, 16, Math.max(12, bh()));
+  for (const side of [-1, 1]){
+    rowAlongZ(side, 6.4, 22.3, false);
+    rowAlongZ(side, 22.3, 52, true);
+    walkBox(37, side*4.8, 24.8, false, true);
+  }
+  roadStrip(40, 0, 23.3, false, true);
+  return J;
+}
+function spawnJunction(z){
+  const r = Math.random(), kind = r < .5 ? 'T' : r < .75 ? 'L' : 'R';
+  if (G.junction) removeJunction(G.junction.J);
+  const J = buildJunction(kind); J.position.set(0, 0, z); worldG.add(J);
+  G.junction = {J, turned:false, kind}; G.mPlan = null; G.turnQueued = 0;
+  coinLine(1, z + 18, 5);
+  scrollWorld(0);
+}
+
 function resetGame(){
   clearObjs();
+  if (G.junction) removeJunction(G.junction.J);
+  turnG.rotation.set(0, 0, 0); turnG.position.set(0, 0, 0); worldG.position.set(0, 0, 0);
   Object.assign(G, {
-    t:0, speed:12, dist:0, coins:0, lane:1, prevLane:1, x:0, y:0, vy:0, slide:0, queueSlide:false,
-    stumbleT:0, closeT:2.2, closeFromStumble:false, invuln:0, chaseDist:4.0, chaseX:0,
+    t:0, speed:12, dist:0, coins:0, lane:1, prevLane:1, x:0, y:0, vy:0, grounded:true, gy:0, slide:0, queueSlide:false,
+    stumbleT:0, closeT:2.2, closeFromStumble:false, invuln:0, chaseDist:4.0, chaseX:0, chaseY:0,
     magnet:0, shield:0, double:0, turbo:0,
-    spawnZ:-45, lineT:1.2, shake:0, caughtT:0, caughtReason:'', lastWallLine:0, lastIceLine:0, pendingLine:null, missionT:0
+    spawnZ:-45, lineT:1.2, shake:0, caughtT:0, caughtReason:'', lastWallLine:0, lastIceLine:0, pendingLine:null, missionT:0,
+    junction:null, turning:null, turnQueued:0, nextJunction: 300 + Math.random()*150, mPlan:null, roofAcc:0
   });
+  if (worldIdx !== 0) setWorld(0, true); else layoutMain(70, 80);
+  scrollWorld(0);
 }
-resetGame();
 
 function spawnRow(){
+  if (G.dist - G.spawnZ > G.nextJunction){ spawnJunction(G.spawnZ - 24); return; }
   const gap = 13 + Math.random()*7 + G.speed*.3;
   const z = G.spawnZ - gap;
-  const lanes = [0, 1, 2].sort(() => Math.random() - .5);
-  const r = Math.random();
+  const reserved = G.mPlan ? G.mPlan.lane : -1;
+  const lanes = [0, 1, 2].filter(l => l !== reserved).sort(() => Math.random() - .5);
   const nonBlock = () => Math.random() < .5 ? 'barrier' : 'bar';
-  const iceChance = Math.min(.22, .08 + G.dist/8000);
-  const anyType = () => { const q = Math.random(); return q < .27 ? 'barrier' : q < .5 ? 'bar' : q < .5 + iceChance ? 'ice' : q < .86 ? 'wall' : 'bus'; };
-  let extraLen = 0;
+  const iceChance = Math.min(.2, .07 + G.dist/8000);
+  const anyType = () => {
+    const q = Math.random();
+    if (q < .24) return 'barrier'; if (q < .46) return 'bar'; if (q < .46 + iceChance) return 'ice';
+    if (q < .8) return 'wall'; if (q < .9 || G.dist < 250) return 'bus'; return 'train';
+  };
+  let extraLen = 0, blocking = 0;
   const placed = [null, null, null];
   const place = (type, lane) => {
+    if (lane === undefined || lane === reserved) return;
+    if (BLOCKING(type)){ if (reserved >= 0 && blocking >= 1) type = nonBlock(); else blocking++; }
     placed[lane] = type;
     if (type === 'bus'){ makeObstacle(type, lane, z - 3); extraLen = Math.max(extraLen, 6); }
     else if (type === 'ice'){ makeObstacle(type, lane, z - 2.2); extraLen = Math.max(extraLen, 4.4); }
+    else if (type === 'train'){ makeObstacle(type, lane, z - TRAIN_LEN/2); extraLen = Math.max(extraLen, TRAIN_LEN); }
     else makeObstacle(type, lane, z);
   };
-  if (r < .15){
+  const r = Math.random();
+  if (r < .13){
     coinLine(lanes[0], z + 5, 6);
-  } else if (r < .5){
+  } else if (r < .42){
     place(anyType(), lanes[0]);
-    coinLine(lanes[1], z + 5, 6);
-  } else if (r < .84){
+    if (lanes[1] !== undefined) coinLine(lanes[1], z + 5, 6);
+  } else if (r < .66){
     place(anyType(), lanes[0]); place(anyType(), lanes[1]);
-    coinLine(lanes[2], z + 5, 6);
-  } else {
+    if (lanes[2] !== undefined) coinLine(lanes[2], z + 5, 6);
+  } else if (r < .79 || G.dist < 180 || reserved >= 0){
     for (const l of lanes) place(nonBlock(), l);
+  } else {
+    // train yard: one train has a ramp so you can run across the roofs
+    const rampLane = lanes[0];
+    makeObstacle('ramp', rampLane, z + 2.6);
+    makeObstacle('train', rampLane, z - TRAIN_LEN/2); placed[rampLane] = 'train';
+    for (const l of lanes.slice(1)) if (Math.random() < .6){ makeObstacle('train', l, z - TRAIN_LEN/2); placed[l] = 'train'; }
+    for (let i = 0; i < 6; i++) makeCoin(rampLane, z - 1.5 - i*2.2, TRAIN_H + .9);
+    extraLen = TRAIN_LEN;
   }
   for (let l = 0; l < 3; l++){
     if (placed[l] === 'barrier' && Math.random() < .55) coinLine(l, z + 4.4, 5, 'arc');
     if (placed[l] === 'bar' && Math.random() < .4) coinLine(l, z + 4.4, 5, 'low');
   }
   if (Math.random() < .08 && G.dist > 120){
-    const free = [0, 1, 2].filter(l => !placed[l]);
-    const lane = free.length ? free[(Math.random()*free.length)|0] : 1;
-    const types = ['magnet', 'shield', 'double', 'turbo'];
-    makePower(types[(Math.random()*types.length)|0], lane, z - gap*.5);
+    const free = [0, 1, 2].filter(l => !placed[l] && l !== reserved);
+    const lane = free.length ? pick(free) : lanes[0];
+    makePower(pick(['magnet', 'shield', 'double', 'turbo']), lane, z - gap*.5);
   }
   if (placed.includes('wall') && G.t - G.lastWallLine > 9 && Math.random() < .5){ G.lastWallLine = G.t; G.pendingLine = "Ich baue eine Mauer! Eine wunderschöne Mauer!"; }
   else if (placed.includes('ice') && G.t - G.lastIceLine > 9 && Math.random() < .5){ G.lastIceLine = G.t; G.pendingLine = "ICE! Schnappt ihn euch!"; sfx('siren'); }
+  // oncoming train: keep its lane clear for a few rows, then send it
+  if (G.mPlan){
+    if (--G.mPlan.rows <= 0){ makeObstacle('mtrain', G.mPlan.lane, z - 10 - TRAIN_LEN/2); G.mPlan = null; }
+  } else if (G.dist > 450 && Math.random() < .12) G.mPlan = {lane:(Math.random()*3)|0, rows:5};
   G.spawnZ = z - extraLen;
 }
 
 /* ================= Input ================= */
+function junctionWindow(){
+  if (!G.junction || G.junction.turned || G.turning) return null;
+  const jz = G.junction.J.position.z;
+  return jz > -16 && jz < 6 ? jz : null;
+}
 function moveLane(dir){
-  if (state !== 'running') return;
+  if (state !== 'running' || G.turning) return;
+  if (junctionWindow() !== null && G.junction.J.userData.open[dir]){ G.turnQueued = dir; return; }
   const n = Math.max(0, Math.min(2, G.lane + dir));
   if (n !== G.lane){ G.prevLane = G.lane; G.lane = n; }
 }
 function jump(){
   if (state !== 'running') return;
-  if (G.y <= 0.001){ G.vy = 11; G.y = 0.001; G.slide = 0; sfx('jump'); addStat('jumps', 1); }
+  if (G.grounded){ G.vy = 11; G.grounded = false; G.slide = 0; sfx('jump'); addStat('jumps', 1); }
 }
 function startSlide(){ G.slide = .75; sfx('slide'); addStat('slides', 1); }
 function slide(){
   if (state !== 'running') return;
-  if (G.y > 0.001){ G.vy = -22; G.queueSlide = true; }
+  if (!G.grounded){ G.vy = -22; G.queueSlide = true; }
   else if (G.slide <= 0) startSlide();
 }
 window.addEventListener('keydown', e => {
@@ -1202,6 +1645,31 @@ function toast(msg){
   const el = $('toast'); el.textContent = msg; el.hidden = false;
   el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, 2600);
+}
+let bannerTimer = 0;
+function showWorldBanner(W){
+  const el = $('worldBanner');
+  el.innerHTML = `<small>NEUE WELT</small>${W.emoji} ${W.name}`;
+  el.hidden = false; el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
+  clearTimeout(bannerTimer); bannerTimer = setTimeout(() => { el.hidden = true; }, 2600);
+}
+function updateCloudStatus(){
+  const el = $('cloudStatus'); if (!el) return;
+  const map = {
+    cloud: ['ok', '☁️ Cloud-Speicher aktiv. Dein Fortschritt bleibt erhalten, auch wenn du das Spiel schließt, und ist auf allen Geräten gleich, auf denen du angemeldet bist.'],
+    loading: ['', '☁️ Verbinde mit dem Cloud-Speicher …'],
+    denied: ['warn', '⚠️ Für dieses Konto ist der Cloud-Speicher nicht freigegeben. Gespeichert wird nur in diesem Browser. Nutze den Speicher-Code als Backup.'],
+    error: ['warn', '⚠️ Cloud-Speicher gerade nicht erreichbar. Beim nächsten Speichern wird es erneut versucht.'],
+    local: ['warn', '💾 Gespeichert nur in diesem Browser. Öffne das Spiel angemeldet über claude.ai, dann wird zusätzlich in der Cloud gespeichert.']
+  };
+  const [cls, txt] = map[cloud.status] || map.local;
+  el.className = 'cloud-line ' + cls; el.textContent = txt;
+  const sb = $('saveBtn'); if (sb) sb.textContent = cloud.status === 'cloud' ? '☁️' : '💾';
+}
+function onSaveReplaced(){
+  applySave();
+  if (state === 'settings') renderSettings();
+  if (state === 'missions') renderMissions();
 }
 function updateBadges(){
   const n = readyCount();
@@ -1369,6 +1837,7 @@ function renderSettings(){
     el.appendChild(b); box.appendChild(el);
   }
   $('saveCode').value = exportCode();
+  updateCloudStatus();
   $('resetSave').textContent = 'SPIELSTAND ' + (slot + 1) + ' LÖSCHEN';
 }
 function applySave(){
@@ -1436,7 +1905,7 @@ function stumble(){
 function knock(o){ o.hit = true; o.knockV = 6; }
 let runFinished = true;
 function finishRun(){
-  if (runFinished) return;
+  if (runFinished) return null;
   runFinished = true;
   addStat('runs', 1);
   const score = Math.floor(G.dist) + G.coins*5;
@@ -1447,18 +1916,55 @@ function finishRun(){
 }
 function caught(reason){
   if (state !== 'running') return;
-  state = 'caught'; G.caughtT = 0; G.caughtReason = reason; G.slide = 0;
+  state = 'caught'; G.caughtT = 0; G.caughtReason = reason; G.slide = 0; G.turnQueued = 0;
   sfx('fired'); G.shake = .5;
   say("YOU'RE FIRED!", 3);
   const earned = G.coins;
-  const {score, isBest} = finishRun();
-  $('oScore').textContent = fmt(score);
+  const res = finishRun() || {score:0, isBest:false};
+  const W = WORLDS[worldIdx];
+  $('oScore').textContent = fmt(res.score);
   $('oDist').textContent = fmt(G.dist);
   $('oCoins').textContent = '+' + earned;
-  $('newBest').hidden = !isBest;
-  $('savedNote').textContent = `💾 Gespeichert in Spielstand ${slot + 1}`;
-  $('overSub').textContent = reason === 'crash' ? 'Volle Kanne dagegen gerannt. Er hat dich erwischt.' : 'Zweimal gestolpert. Er hat dich erwischt.';
+  $('newBest').hidden = !res.isBest;
+  $('overWorld').textContent = `Welt erreicht: ${W.emoji} ${W.name}`;
+  $('savedNote').textContent = cloud.ready ? `☁️ Gespeichert in Spielstand ${slot + 1} (Cloud)` : `💾 Gespeichert in Spielstand ${slot + 1}`;
+  $('overSub').textContent = reason === 'crash' ? 'Volle Kanne dagegen gerannt. Er hat dich erwischt.'
+    : reason === 'dead-end' ? 'Nicht abgebogen und gegen die Hauswand. Er hat dich erwischt.'
+    : 'Zweimal gestolpert. Er hat dich erwischt.';
   checkMissionToasts(); updateBadges();
+}
+
+function startTurn(dir){
+  G.turning = {t:0, dur:.3, dir}; G.turnQueued = 0;
+  turnG.position.set(G.x, 0, 0); worldG.position.set(-G.x, 0, 0);
+  sfx('slide'); addStat('turns', 1);
+}
+function finishTurn(){
+  const J = G.junction.J;
+  turnG.updateMatrixWorld(true);
+  const m = J.matrixWorld.clone();
+  turnG.rotation.set(0, 0, 0); turnG.position.set(0, 0, 0); worldG.position.set(0, 0, 0);
+  turnG.updateMatrixWorld(true);
+  m.decompose(J.position, J.quaternion, J.scale);
+  const dx = -J.position.x; J.position.x = 0;
+  G.x = Math.max(-2.6, Math.min(2.6, G.x + dx)); G.chaseX += dx;
+  let best = 0; for (let i = 1; i < 3; i++) if (Math.abs(LANES[i] - G.x) < Math.abs(LANES[best] - G.x)) best = i;
+  G.lane = G.prevLane = best;
+  for (const r of J.userData.branchRoads) r.visible = false;
+  for (const p of J.userData.post) p.visible = true;
+  clearObjs();
+  G.junction.turned = true; G.turning = null;
+  layoutMain(J.position.z - 6.3 - JL, J.position.z - 3.3 - JL);
+  G.spawnZ = J.position.z - 22;
+  G.nextJunction = G.dist + 380 + Math.random()*320;
+  scrollWorld(0);
+}
+
+function updateChase(dt){
+  const close = G.closeT > 0;
+  const targetDist = close ? 4.0 : 15;
+  G.chaseDist += (targetDist - G.chaseDist)*Math.min(1, dt*(close ? 2.5 : .45));
+  G.chaseX += (G.x - G.chaseX)*Math.min(1, dt*4);
 }
 
 function update(dt){
@@ -1469,17 +1975,11 @@ function update(dt){
   const d = G.speed*dt;
   G.dist += d;
   addStat('distTotal', d); maxStat('bestDist', G.dist);
-  scrollWorld(d);
-  G.spawnZ += d;
-  while (G.spawnZ > -175) spawnRow();
-  if (G.pendingLine){ say(G.pendingLine, 2.4); G.pendingLine = null; }
 
-  G.x += (LANES[G.lane] - G.x)*Math.min(1, dt*14);
-  if (G.y > 0 || G.vy > 0){
-    G.vy -= 34*dt; G.y += G.vy*dt;
-    if (G.y <= 0){ G.y = 0; G.vy = 0; if (G.queueSlide){ G.queueSlide = false; startSlide(); } }
-  }
-  G.slide = Math.max(0, G.slide - dt);
+  const sc = G.dist + G.coins*5;
+  let wi = 0; for (let i = 0; i < WORLDS.length; i++) if (sc >= WORLDS[i].at) wi = i;
+  if (wi > worldIdx){ setWorld(wi, false); maxStat('worldMax', wi); say("Auch diese Welt gehört bald mir!", 2.4); }
+
   G.stumbleT -= dt; G.invuln -= dt;
   const wasClose = G.closeT > 0;
   G.closeT -= dt;
@@ -1488,16 +1988,52 @@ function update(dt){
   G.double = Math.max(0, G.double - dt);
   if (G.turbo > 0){ G.turbo -= dt; G.closeT = Math.min(G.closeT, 0); if (G.turbo <= 0) G.invuln = 1; }
   G.shake = Math.max(0, G.shake - dt);
-
-  const close = G.closeT > 0;
-  const targetDist = close ? 4.0 : 15;
-  G.chaseDist += (targetDist - G.chaseDist)*Math.min(1, dt*(close ? 2.5 : .45));
-  G.chaseX += (G.x - G.chaseX)*Math.min(1, dt*4);
   G.lineT -= dt;
   if (G.lineT <= 0){ G.lineT = 5 + Math.random()*5; say(TRUMP_LINES[(Math.random()*TRUMP_LINES.length)|0], 2.6); }
-
   G.missionT -= dt;
   if (G.missionT <= 0){ G.missionT = .5; checkMissionToasts(); }
+  updateChase(dt);
+
+  if (G.turning){
+    G.turning.t += dt;
+    const k = Math.min(1, G.turning.t/G.turning.dur), e = k*k*(3 - 2*k);
+    turnG.rotation.y = (G.turning.dir < 0 ? -1 : 1)*Math.PI/2*e;
+    if (k >= 1) finishTurn();
+    return;
+  }
+
+  scrollWorld(d);
+  G.spawnZ += d;
+  while (G.spawnZ > -175 && !(G.junction && !G.junction.turned)) spawnRow();
+  if (G.pendingLine){ say(G.pendingLine, 2.4); G.pendingLine = null; }
+
+  // crossing: turn when the queued direction reaches the middle, crash into the house wall otherwise
+  if (G.junction && !G.junction.turned){
+    const J = G.junction.J, jz = J.position.z, open = J.userData.open;
+    if (G.turnQueued && jz >= -.2){ startTurn(G.turnQueued); return; }
+    if (jz >= 5.4){
+      if (G.shield > 0 || G.turbo > 0){ if (G.turbo <= 0) G.shield = 0; startTurn(open[-1] ? -1 : 1); return; }
+      caught('dead-end'); return;
+    }
+  }
+
+  // runner physics, with train roofs and ramps as ground
+  G.x += (LANES[G.lane] - G.x)*Math.min(1, dt*14);
+  const gnd = groundAt(G.x, 0); G.gy = gnd.h;
+  if (G.grounded){
+    if (gnd.h > G.y && (gnd.ramp || gnd.h - G.y < .7)) G.y = gnd.h;
+    else if (gnd.h < G.y - .05){ G.grounded = false; G.vy = 0; }
+  }
+  if (!G.grounded){
+    G.vy -= 34*dt; G.y += G.vy*dt;
+    if (G.vy <= 0 && G.y <= gnd.h && (gnd.ramp || gnd.h - G.y < .9)){
+      G.y = gnd.h; G.vy = 0; G.grounded = true;
+      if (G.queueSlide){ G.queueSlide = false; startSlide(); }
+    }
+    if (G.y < 0){ G.y = 0; G.vy = 0; G.grounded = true; }
+  }
+  if (G.grounded && G.y > 2){ G.roofAcc += d; if (G.roofAcc >= 1){ addStat('roofDist', Math.floor(G.roofAcc)); G.roofAcc %= 1; } }
+  G.slide = Math.max(0, G.slide - dt);
 
   const ph = G.slide > 0 ? .9 : 2.0;
   for (let i = objs.length - 1; i >= 0; i--){
@@ -1513,18 +2049,22 @@ function update(dt){
       if (Math.abs(m.position.z) < .75 && Math.abs(m.position.x - G.x) < .8 && m.position.y > G.y - .3 && m.position.y < G.y + ph + .3){
         const n = G.double > 0 ? 2 : 1;
         G.coins += n; addStat('coinsTotal', n); maxStat('bestCoinsRun', G.coins);
-        sfx('coin'); scene.remove(m); objs.splice(i, 1); continue;
+        sfx('coin'); worldG.remove(m); objs.splice(i, 1); continue;
       }
     } else if (o.kind === 'power'){
       m.rotation.y += dt*2.5; o.inner.position.y = Math.sin(G.t*4)*.12;
-      if (Math.abs(m.position.z) < .8 && Math.abs(m.position.x - G.x) < .9 && G.y < 1.6){
+      if (Math.abs(m.position.z) < .8 && Math.abs(m.position.x - G.x) < .9 && Math.abs(G.y + .2 - (m.position.y - 1)) < 1.6){
         if (o.type === 'shield') G.shield = 1; else G[o.type] = POWER_INFO[o.type].dur;
-        if (o.type === 'turbo'){ say("Was?! Wie ist der so schnell?!", 2); }
+        if (o.type === 'turbo') say("Was?! Wie ist der so schnell?!", 2);
         addStat('powerups', 1);
         toast(POWER_INFO[o.type].label + '!');
-        sfx('power'); scene.remove(m); objs.splice(i, 1); continue;
+        sfx('power'); worldG.remove(m); objs.splice(i, 1); continue;
       }
     } else if (o.kind === 'obstacle'){
+      if (o.vz && !o.hit){
+        m.position.z += o.vz*dt;
+        if (!o.honked && m.position.z > -85){ o.honked = true; sfx('horn'); }
+      }
       if (o.hit){
         m.rotation.x -= dt*5; m.position.y += o.knockV*dt; o.knockV -= 25*dt; m.position.z -= dt*6;
       } else {
@@ -1535,9 +2075,7 @@ function update(dt){
           const lateral = o.zPrev && !o.xPrev;
           if (G.turbo > 0){ knock(o); G.shake = .15; sfx('hit'); }
           else if (G.shield > 0){ G.shield = 0; knock(o); sfx('hit'); G.shake = .2; G.invuln = .4; }
-          else if (lateral && BLOCKING(o.type)){
-            if (G.invuln <= 0){ G.lane = G.prevLane; stumble(); }
-          }
+          else if (lateral && BLOCKING(o.type)){ if (G.invuln <= 0){ G.lane = G.prevLane; stumble(); } }
           else if (BLOCKING(o.type)){ if (G.invuln <= 0) caught('crash'); }
           else { knock(o); stumble(); }
         }
@@ -1545,7 +2083,7 @@ function update(dt){
         if (o.type === 'ice' && !o.counted && m.position.z - o.hd > .6){ o.counted = true; addStat('iceDodged', 1); }
       }
     }
-    if (m.position.z > 14 || m.position.y < -5){ scene.remove(m); objs.splice(i, 1); }
+    if (m.position.z > 16 || m.position.y < -5){ worldG.remove(m); objs.splice(i, 1); }
   }
 }
 
@@ -1558,7 +2096,7 @@ function updateCaught(dt){
     o.mesh.position.z += d; if (o.kind === 'coin') o.mesh.rotation.y += dt*4;
     if (G.caughtT > .45 && o.mesh.position.z > -10 && o.mesh.position.z < 2 && Math.abs(o.mesh.position.x - G.x) < 1.6) o.mesh.visible = false;
   }
-  G.y = Math.max(0, G.y + G.vy*dt); G.vy -= 34*dt; if (G.y <= 0) G.vy = 0;
+  G.vy -= 34*dt; G.y = Math.max(0, G.y + G.vy*dt); if (G.y <= 0) G.vy = 0;
   G.chaseDist += (1.5 - G.chaseDist)*Math.min(1, dt*3);
   G.chaseX += (G.x - G.chaseX)*Math.min(1, dt*4);
   G.shake = Math.max(0, G.shake - dt);
@@ -1587,6 +2125,8 @@ function frame(now){
 
   if (state === 'running') update(dt);
   else if (state === 'caught' || state === 'over') updateCaught(dt);
+  updatePalette(dt);
+  updateSnow(state === 'paused' ? 0 : dt, state === 'running' ? G.speed : 2);
 
   if (state === 'menu' || state === 'shop' || state === 'missions' || state === 'settings'){
     const inShop = state === 'shop';
@@ -1614,11 +2154,11 @@ function frame(now){
     runner.group.rotation.set(0, 0, 0);
     let mode = 'run';
     if (caughtMode) mode = G.caughtT > .15 ? 'fall' : 'run';
-    else if (G.y > .001) mode = 'jump';
+    else if (!G.grounded) mode = 'jump';
     else if (G.slide > 0) mode = 'slide';
     const at = state === 'paused' ? 0 : t;
     animRunner(runner, G.turbo > 0 ? at*1.5 : at, mode);
-    runner.shadow.position.y = .02 - G.y; runner.shadow.scale.setScalar(Math.max(.4, 1 - G.y*.25));
+    runner.shadow.position.y = .02 + Math.min(0, G.gy - G.y); runner.shadow.scale.setScalar(Math.max(.4, 1 - (G.y - G.gy)*.25));
     runner.group.visible = !(G.invuln > 0 && state === 'running' && Math.floor(t*16) % 2 === 0);
     if (!runner.shieldMesh){
       runner.shieldMesh = new THREE.Mesh(new THREE.SphereGeometry(1.25, 18, 14), new THREE.MeshPhongMaterial({color:0x4aa8ff, transparent:true, opacity:.22, emissive:0x1a4a99, depthWrite:false}));
@@ -1626,22 +2166,26 @@ function frame(now){
     }
     runner.shieldMesh.visible = G.shield > 0;
 
+    const canGround = !G.turning && state !== 'paused';
+    if (canGround){ const gh = groundAt(G.chaseX, G.chaseDist).h; G.chaseY += (gh - G.chaseY)*Math.min(1, dt*10); }
     trump.group.visible = true;
-    trump.group.position.set(G.chaseX + (caughtMode ? .3 : 0), 0, G.chaseDist);
+    trump.group.position.set(G.chaseX + (caughtMode ? .3 : 0), G.chaseY, G.chaseDist);
     trump.group.rotation.y = 0;
     animTrump(trump, at, caughtMode && G.caughtT > .7 ? 'point' : 'run');
     agents.forEach((a, i) => {
       a.group.visible = true;
       const ax = Math.max(-3, Math.min(3, G.chaseX + (i ? 1.7 : -1.7)));
-      a.group.position.set(ax, 0, G.chaseDist + (caughtMode ? .6 : 1.6) + i*.4);
+      const az = G.chaseDist + (caughtMode ? .6 : 1.6) + i*.4;
+      const ay = canGround ? groundAt(ax, az).h : a.group.position.y;
+      a.group.position.set(ax, a.group.position.y + (ay - a.group.position.y)*Math.min(1, dt*10), az);
       a.group.rotation.y = 0;
       animRunner(a, at*.93 + i*.5, caughtMode && G.caughtT > .9 ? 'grab' : 'run');
     });
 
     if (caughtMode && G.caughtT > .5){
-      camPos.set(G.x + (portrait ? .4 : 1.6), 2.4, portrait ? -6.8 : -5.2); camLook.set(G.x + .2, 1.5, 1.4);
+      camPos.set(G.x + (portrait ? .4 : 1.6), 2.4 + G.y, portrait ? -6.8 : -5.2); camLook.set(G.x + .2, 1.5 + G.y*.5, 1.4);
     } else {
-      camPos.set(G.x*.55, 6.0 + G.y*.25, 8.2); camLook.set(G.x*.55, .9, -6);
+      camPos.set(G.x*.55, 6.0 + G.y*.45, 8.2); camLook.set(G.x*.55, .9 + G.y*.5, -6);
     }
   }
   const camRate = (state === 'running') ? 8 : 3;
@@ -1661,14 +2205,24 @@ function frame(now){
     for (const k of ['magnet', 'double', 'turbo']) if (G[k] > 0) ph += `<div class="power">${POWER_INFO[k].label} <i><b style="width:${Math.round(G[k]/POWER_INFO[k].dur*100)}%"></b></i></div>`;
     if (G.shield > 0) ph += `<div class="power">${POWER_INFO.shield.label}</div>`;
     const pw = $('powers'); if (pw._last !== ph){ pw.innerHTML = ph; pw._last = ph; }
-  } else { $('warn').hidden = true; $('turboFx').style.opacity = 0; if (state !== 'caught') $('danger').style.opacity = 0; }
+    // crossing hint
+    const th = $('turnHint');
+    if (G.junction && !G.junction.turned && !G.turning && G.junction.J.position.z > -50){
+      const open = G.junction.J.userData.open;
+      const txt = G.turnQueued ? (G.turnQueued < 0 ? '⬅ LINKS!' : 'RECHTS! ➡') : `${open[-1] ? '⬅ ' : ''}ABBIEGEN${open[1] ? ' ➡' : ''}`;
+      if (th.textContent !== txt) th.textContent = txt;
+      th.classList.toggle('queued', !!G.turnQueued); th.hidden = false;
+    } else th.hidden = true;
+  } else { $('warn').hidden = true; $('turnHint').hidden = true; $('turboFx').style.opacity = 0; if (state !== 'caught') $('danger').style.opacity = 0; }
 
   updateTalk(state === 'paused' ? 0 : dt);
   renderer.render(scene, camera);
 }
+
 goMenu();
 requestAnimationFrame(frame);
-window.__escape = {G, get state(){ return state; }, get save(){ return save; }, startGame, moveLane, jump, slide};
+initCloud();
+window.__escape = {G, get state(){ return state; }, get save(){ return save; }, get world(){ return worldIdx; }, startGame, moveLane, jump, slide, cloud, makeObstacle, setWorld, clearObjs};
 })();
 </script>
 </body>
