@@ -7,7 +7,7 @@ const JL = 60; // length of a side street at a crossing
 function removeJunction(J){
   worldG.remove(J);
   J.traverse(o => {
-    if (o.geometry && o.geometry !== boxGeo && o.geometry !== tileGeo) o.geometry.dispose();
+    if (o.geometry && !isSharedGeo(o.geometry)) o.geometry.dispose();
     if (o.userData && o.userData.tex){ o.userData.tex.dispose(); if (o.userData.glow) o.userData.glow.dispose(); o.material.dispose(); }
   });
   for (const t of J.userData.textures) t.dispose();
@@ -17,12 +17,12 @@ function buildJunction(kind){
   const W = WORLDS[worldIdx], J = new THREE.Group();
   const ud = J.userData = {kind, open:{'-1': kind !== 'R', '1': kind !== 'L'}, branchRoads:[], post:[], textures:[]};
   const asphalt = new THREE.Color(0x35374b).multiply(new THREE.Color(W.road));
-  const sq = new THREE.Mesh(new THREE.PlaneGeometry(6.6, 6.6), new THREE.MeshLambertMaterial({color: asphalt}));
+  const sq = new THREE.Mesh(new THREE.PlaneGeometry(6.6, 6.6), toon({color: asphalt}));
   sq.rotation.x = -Math.PI/2; sq.position.y = .012; J.add(sq);
   for (let i = 0; i < 6; i++){ const s = new THREE.Mesh(new THREE.PlaneGeometry(.55, 1.5), lam(0xe9e6dc)); s.rotation.x = -Math.PI/2; s.position.set(-2.75 + i*1.1, .014, 4.4); J.add(s); }
   const walkBox = (len, x, z, alongX, post) => {
     const tex = walkTex.clone(); tex.needsUpdate = true; tex.repeat.set(alongX ? len/3 : 1, alongX ? 1 : len/3); ud.textures.push(tex);
-    const m = new THREE.Mesh(new THREE.BoxGeometry(alongX ? len : 3, .25, alongX ? 3 : len), new THREE.MeshLambertMaterial({map: tex, color: W.walk}));
+    const m = new THREE.Mesh(new THREE.BoxGeometry(alongX ? len : 3, .25, alongX ? 3 : len), toon({map: tex, color: W.walk}));
     m.position.set(x, .125, z); J.add(m);
     if (post){ m.visible = false; ud.post.push(m); }
     return m;
@@ -30,12 +30,12 @@ function buildJunction(kind){
   const roadStrip = (len, x, z, alongX, post) => {
     const tex = roadTex.clone(); tex.needsUpdate = true; tex.offset.set(0, 0); tex.repeat.set(1, len/10); ud.textures.push(tex);
     const rg = new THREE.Group(); rg.position.set(x, 0, z); if (alongX) rg.rotation.y = Math.PI/2; J.add(rg);
-    const rd = new THREE.Mesh(new THREE.PlaneGeometry(6.6, len), new THREE.MeshLambertMaterial({map: tex, color: W.road}));
+    const rd = new THREE.Mesh(new THREE.PlaneGeometry(6.6, len), toon({map: tex, color: W.road}));
     rd.rotation.x = -Math.PI/2; rd.position.y = .01; rg.add(rd);
     if (post){ rd.visible = false; ud.post.push(rd); }
     return rd;
   };
-  const bh = () => W.low ? 3 + Math.random()*5 : 7 + Math.random()*18;
+  const bh = () => W.bh[0] + Math.random()*(W.bh[1] - W.bh[0]);
   const bld = (x, z, sx, sz, h, post) => {
     const m = makeBuildingMesh(W, sx, h, sz); m.position.set(x, h/2, z); J.add(m);
     if (post){ m.visible = false; ud.post.push(m); }
@@ -90,7 +90,7 @@ function resetGame(){
     spawnZ:-45, lineT:1.2, shake:0, caughtT:0, caughtReason:'', lastWallLine:0, lastIceLine:0, pendingLine:null, missionT:0,
     junction:null, turning:null, turnQueued:0, nextJunction: 300 + Math.random()*150, mPlan:null, roofAcc:0
   });
-  if (worldIdx !== 0) setWorld(0, true); else layoutMain(70, 80);
+  if (worldIdx !== 0 || appliedWorldId !== WORLDS[0].id) setWorld(0, true); else layoutMain(70, 80);
   scrollWorld(0);
 }
 
@@ -111,7 +111,8 @@ function spawnRow(){
   const placed = [null, null, null];
   const place = (type, lane) => {
     if (lane === undefined || lane === reserved) return;
-    if (BLOCKING(type)){ if (reserved >= 0 && blocking >= 1) type = nonBlock(); else blocking++; }
+    // while an oncoming train is on its way, keep every row jumpable or slidable so it can never trap you
+    if (BLOCKING(type)){ if (reserved >= 0) type = nonBlock(); else blocking++; }
     placed[lane] = type;
     if (type === 'bus'){ makeObstacle(type, lane, z - 3); extraLen = Math.max(extraLen, 6); }
     else if (type === 'ice'){ makeObstacle(type, lane, z - 2.2); extraLen = Math.max(extraLen, 4.4); }
@@ -410,9 +411,13 @@ function update(dt){
         const yOver = G.y < o.y1 && G.y + ph > o.y0;
         if (zOver && xOver && yOver){
           const lateral = o.zPrev && !o.xPrev;
+          G.lastHit = {type: o.type, lateral, lane: o.lane, z: +m.position.z.toFixed(2), y: +G.y.toFixed(2), x: +G.x.toFixed(2), myLane: G.lane, t: +G.t.toFixed(2)};
           if (G.turbo > 0){ knock(o); smashFx(m); G.shake = .15; sfx('hit'); }
           else if (G.shield > 0){ G.shield = 0; knock(o); smashFx(m); sfx('hit'); G.shake = .2; G.invuln = .4; }
-          else if (lateral && BLOCKING(o.type)){ if (G.invuln <= 0){ G.lane = G.prevLane; stumble(); } }
+          else if ((lateral || o.lane !== G.lane) && BLOCKING(o.type)){
+            // side-swipe while changing lanes: bounce back to the side you came from and stumble
+            if (G.invuln <= 0){ G.lane = G.x > m.position.x ? Math.min(2, o.lane + 1) : Math.max(0, o.lane - 1); G.prevLane = G.lane; stumble(); }
+          }
           else if (BLOCKING(o.type)){ if (G.invuln <= 0) caught('crash'); }
           else { knock(o); stumble(); }
         }
@@ -467,23 +472,24 @@ function frame(now){
   if (state !== 'running' && state !== 'caught' && state !== 'over') G.lastD = 0;
   updateSnow(state === 'paused' ? 0 : dt, state === 'running' ? G.speed : 2);
 
-  if (state === 'menu' || state === 'shop' || state === 'missions' || state === 'settings'){
+  if (state === 'menu' || state === 'shop' || state === 'missions' || state === 'settings' || state === 'countries'){
     const inShop = state === 'shop';
     const tx = portrait ? .95 : 1.9;
     runner.group.visible = !(inShop && shopTab === 'chaser');
     runner.group.position.set(inShop ? 0 : (portrait ? -.35 : -.6), 0, 0);
     runner.group.rotation.set(0, inShop ? t*.7 : -.25, 0);
     animRunner(runner, t, runner.cheerT > 0 ? 'cheer' : 'idle'); if (runner.cheerT > 0) runner.cheerT -= dt;
-    trump.group.visible = !inShop || shopTab === 'chaser';
+    trump.group.visible = state !== 'countries' && (!inShop || shopTab === 'chaser');
     if (inShop){ trump.group.position.set(0, 0, 0); trump.group.rotation.y = t*.7; }
     else { trump.group.position.set(tx, 0, 2.8); trump.group.rotation.y = portrait ? -.15 : -.35; }
     animTrump(trump, t, 'point');
     agents.forEach((a, i) => {
-      a.group.visible = !inShop;
+      a.group.visible = !inShop && state !== 'countries';
       a.group.position.set(tx + (i ? 1.25 : -1.25), 0, 4.6); a.group.rotation.y = 0;
       animRunner(a, t + i, 'grab');
     });
-    if (!inShop){ camPos.set(portrait ? .3 : .9, 2.0, portrait ? -7.6 : -6.0); camLook.set(portrait ? .3 : .6, portrait ? 1.6 : 1.45, 0); }
+    if (state === 'countries'){ camPos.set(0, 3.2, 9); camLook.set(0, portrait ? -9 : -4, -80); }
+    else if (!inShop){ camPos.set(portrait ? .3 : .9, 2.0, portrait ? -7.6 : -6.0); camLook.set(portrait ? .3 : .6, portrait ? 1.6 : 1.45, 0); }
     else if (shopTab === 'chaser'){ camPos.set(0, 1.6, portrait ? -7.6 : -6.4); camLook.set(0, portrait ? -.1 : .5, 0); }
     else { camPos.set(0, 1.4, portrait ? -6.6 : -5.5); camLook.set(0, portrait ? -.1 : .4, 0); }
     if (state === 'menu' && talk.t <= 0 && Math.random() < dt*.25) say(TRUMP_LINES[(Math.random()*TRUMP_LINES.length)|0], 2.6);
@@ -558,6 +564,6 @@ function frame(now){
   } else { $('warn').hidden = true; $('turnHint').hidden = true; $('turboFx').style.opacity = 0; if (state !== 'caught') $('danger').style.opacity = 0; }
 
   updateTalk(state === 'paused' ? 0 : dt);
-  renderer.render(scene, camera);
+  syncCoins(); renderScene();
 }
 

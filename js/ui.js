@@ -1,6 +1,6 @@
 'use strict';
 /* ================= UI ================= */
-const screens = {menu:$('menu'), shop:$('shop'), missions:$('missions'), settings:$('settings'), over:$('over'), pause:$('pause')};
+const screens = {menu:$('menu'), shop:$('shop'), missions:$('missions'), settings:$('settings'), over:$('over'), pause:$('pause'), countries:$('countries')};
 function show(name){ for (const k in screens) screens[k].hidden = k !== name; $('topIcons').hidden = name !== 'menu'; }
 let toastTimer = 0;
 function toast(msg){
@@ -46,6 +46,8 @@ function refreshMenu(){
   $('musicBtn').classList.toggle('off', !save.settings.music);
   $('mMult').textContent = 'x' + scoreMultiplier();
   $('dailyDot').hidden = !dailyAvailable();
+  const C = countryById(save.country);
+  $('cFlag').textContent = C.flag; $('cName').textContent = C.name; $('cWorlds').textContent = C.worlds.map(w => w.emoji).join(' ');
   updateBadges();
 }
 function goMenu(){
@@ -56,6 +58,7 @@ function goMenu(){
 function startGame(){
   resetGame(); setRunnerSkin(save.skin); setChaserSkin(save.chaser);
   runFinished = false;
+  if (!save.played.includes(save.country)){ save.played.push(save.country); }
   state = 'running'; show(null); $('hud').hidden = false;
   say("Komm sofort zurück!", 2);
   sfx('power'); setMusic(true, 0);
@@ -237,7 +240,8 @@ function renderSettings(){
   $('resetSave').textContent = 'SPIELSTAND ' + (slot + 1) + ' LÖSCHEN';
 }
 function applySave(){
-  setShadows(save.settings.shadows);
+  setQuality(save.settings.quality);
+  if (WORLDS !== countryById(save.country).worlds && state !== 'running' && state !== 'paused'){ setCountry(save.country); resetGame(); }
   notified.clear(); markNotified();
   setRunnerSkin(save.skin); setChaserSkin(save.chaser); refreshMenu();
 }
@@ -331,8 +335,47 @@ $('dailyBtn').onclick = openDaily;
 /* ---- Settings toggles ---- */
 function renderToggles(){
   const set = (id, on, label) => { const b = $(id); b.classList.toggle('on', on); b.querySelector('b').textContent = on ? 'AN' : 'AUS'; b.setAttribute('aria-pressed', on); };
-  set('tgMusic', save.settings.music); set('tgShadows', save.settings.shadows); set('tgSound', !save.muted);
+  set('tgMusic', save.settings.music); set('tgSound', !save.muted);
+  const q = $('tgQuality'); q.classList.add('on'); q.querySelector('b').textContent = {high:'HOCH', mid:'MITTEL', low:'NIEDRIG'}[save.settings.quality];
 }
 $('tgMusic').onclick = () => { save.settings.music = !save.settings.music; persist(); renderToggles(); refreshMenu(); };
-$('tgShadows').onclick = () => { save.settings.shadows = !save.settings.shadows; setShadows(save.settings.shadows); persist(); renderToggles(); };
+$('tgQuality').onclick = () => {
+  const order = ['high', 'mid', 'low'];
+  save.settings.quality = order[(order.indexOf(save.settings.quality) + 1) % 3];
+  setQuality(save.settings.quality); persist(); renderToggles();
+  toast({high:'🎨 Grafik hoch: Schatten und Umrisse', mid:'🎨 Grafik mittel: Umrisse ohne Schatten', low:'🎨 Grafik niedrig: am schnellsten'}[save.settings.quality]);
+};
 $('tgSound').onclick = () => { save.muted = !save.muted; persist(); renderToggles(); refreshMenu(); };
+
+/* ---- Countries ---- */
+let ctPreview = 'usa';
+function openCountries(){ state = 'countries'; ctPreview = save.country; show('countries'); renderCountries(); }
+function previewCountry(id){ ctPreview = id; setCountry(id); resetGame(); renderCountries(); }
+function renderCountries(){
+  $('ctBest').textContent = fmt(save.best);
+  const list = $('countryList'); list.innerHTML = '';
+  for (const c of COUNTRIES){
+    const open = save.best >= c.need, sel = c.id === save.country;
+    const b = document.createElement('button');
+    b.className = 'card' + (c.id === ctPreview ? ' sel' : '') + (open ? '' : ' locked');
+    b.innerHTML = `<span class="fl">${c.flag}</span><span class="nm">${c.name}</span>` +
+      (sel ? '<span class="tag">AKTIV</span>' : open ? '<span class="pr">Frei</span>' : `<span class="pr">🔒 ${fmt(c.need)}</span>`);
+    b.onclick = () => { if (c.id !== ctPreview) previewCountry(c.id); };
+    list.appendChild(b);
+  }
+  const c = countryById(ctPreview), open = save.best >= c.need, act = $('countryAction');
+  $('ctName').textContent = `${c.flag} ${c.name}`;
+  $('ctWorlds').innerHTML = c.worlds.map((w, i) => `<span class="ctw">${w.emoji} ${w.name}${i ? ` <small>ab ${fmt(w.at)}</small>` : ''}</span>`).join('');
+  if (c.id === save.country){ act.textContent = 'AUSGEWÄHLT ✓'; act.disabled = true; }
+  else if (open){ act.textContent = 'AUSWÄHLEN'; act.disabled = false; }
+  else { act.textContent = `NOCH ${fmt(c.need - save.best)} PUNKTE`; act.disabled = true; }
+}
+$('countryAction').onclick = () => {
+  const c = countryById(ctPreview);
+  if (save.best < c.need) return;
+  save.country = c.id; persist(); sfx('buy'); runner.cheerT = 1.4;
+  toast(`${c.flag} ${c.name}: Start in ${c.worlds[0].emoji} ${c.worlds[0].name}`);
+  renderCountries(); refreshMenu();
+};
+$('countryBtn').onclick = openCountries;
+$('countriesBack').onclick = () => { if (ctPreview !== save.country) setCountry(save.country); goMenu(); };

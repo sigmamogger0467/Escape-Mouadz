@@ -241,7 +241,7 @@ function buildRunner(s){
   rbox(.36, .3, .08, std(0x4a4f5a), 0, 0, -.06, jet, .03);
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(.5, 20), new THREE.MeshBasicMaterial({color:0, transparent:true, opacity:.22, depthWrite:false}));
   shadow.rotation.x = -Math.PI/2; shadow.position.y = .02; g.add(shadow);
-  castAll(g);
+  castAll(g); mergeTree(g);
   return {group:g, body, legL:legs[0], legR:legs[1], armL:arms[0], armR:arms[1], head, cape, shadow, jet, zombie: s.extra === 'zombie' || s.extra === 'mummy'};
 }
 
@@ -452,7 +452,7 @@ function buildTrump(c){
       break;
     }
   }
-  castAll(g);
+  castAll(g); mergeTree(g);
   g.scale.setScalar(.9);
   return {group:g, body, legL:legs[0], legR:legs[1], armL:arms[0], armR:arms[1], head, cape, zombie: c.extra === 'zombie'};
 }
@@ -487,5 +487,5 @@ let runner = buildRunner(skinById(save.skin)); scene.add(runner.group);
 let trump = buildTrump(chaserById(save.chaser)); scene.add(trump.group);
 const agents = [buildRunner(AGENT), buildRunner(AGENT)];
 for (const a of agents){ a.group.scale.setScalar(1.06); scene.add(a.group); }
-function setRunnerSkin(id){ scene.remove(runner.group); runner = buildRunner(skinById(id)); scene.add(runner.group); }
-function setChaserSkin(id){ scene.remove(trump.group); trump = buildTrump(chaserById(id)); scene.add(trump.group); }
+function setRunnerSkin(id){ scene.remove(runner.group); disposeMerged(runner.group); runner = buildRunner(skinById(id)); scene.add(runner.group); }
+function setChaserSkin(id){ scene.remove(trump.group); disposeMerged(trump.group); trump = buildTrump(chaserById(id)); scene.add(trump.group); }

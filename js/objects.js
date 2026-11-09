@@ -59,18 +59,29 @@ const coinTex = canvasTex(128, 128, (g, w, h) => {
   g.fill();
 });
 const coinGeo = new THREE.CylinderGeometry(.32, .32, .08, 26); coinGeo.rotateX(Math.PI/2);
-const coinFace = new THREE.MeshPhongMaterial({map: coinTex, emissive: 0x4a3000, shininess: 90, specular: 0xfff2b0});
-const coinMat = [glossy(0xe0a020, 0x4a3000), coinFace, coinFace];
+const coinMat = toon({map: coinTex, emissive: 0x3a2400});
+// all coins are drawn as instances of one mesh; each coin object only holds a transform
+const coinIM = new THREE.InstancedMesh(coinGeo, coinMat, 400);
+coinIM.count = 0; coinIM.frustumCulled = false; coinIM.layers.enable(OUTLINE_LAYER); worldG.add(coinIM);
+function syncCoins(){
+  let n = 0;
+  for (const o of objs){
+    if (o.kind !== 'coin' || !o.mesh.visible || n >= 400) continue;
+    o.mesh.updateMatrix(); coinIM.setMatrixAt(n++, o.mesh.matrix);
+  }
+  coinIM.count = n; coinIM.instanceMatrix.needsUpdate = true;
+}
 const wheelGeo = new THREE.CylinderGeometry(.45, .45, .3, 18); wheelGeo.rotateZ(Math.PI/2);
-const texMatCache = {};
-function texMat(tex, extra){ const k = tex.uuid + (extra ? JSON.stringify(extra) : ''); return texMatCache[k] || (texMatCache[k] = new THREE.MeshStandardMaterial(Object.assign({map: tex, roughness: .6}, extra || {}))); }
+const texMatCache = {}, cbCache = {};
+function countryBanner(t){ return cbCache[t] || (cbCache[t] = textTex(t, '#ffd23a', '#1d2a4a')); }
+function texMat(tex){ const k = tex.uuid; return texMatCache[k] || (texMatCache[k] = toon({map: tex})); }
 function wheel(x, y, z, g){
   const w = new THREE.Mesh(wheelGeo, std(0x15151a, .8)); w.position.set(x, y, z); g.add(w);
   const hub = cyl(.2, .2, .32, std(0xb8bcc4, .3, .5), x, y, z, g, 12); hub.rotation.z = Math.PI/2;
 }
 
 let objs = [];
-function addObj(o){ worldG.add(o.mesh); objs.push(o); return o; }
+function addObj(o){ if (o.kind !== 'coin') worldG.add(o.mesh); objs.push(o); return o; }
 const BLOCKING = t => t === 'wall' || t === 'bus' || t === 'ice' || t === 'train' || t === 'mtrain';
 const TRAIN_H = 2.6, TRAIN_LEN = 14;
 const trainTexCache = {};
@@ -119,6 +130,44 @@ function lowObstacle(kind, g){
       cone(.21, .22, sand, sx, sx ? .76 : .9, 0, g, 14);
     }
     cyl(.01, .01, .3, std(0x5a3a1a), 0, 1.13, 0, g, 4); rbox(.14, .09, .01, std(0xd62b2b), .07, 1.24, 0, g, .005);
+  } else if (kind === 'crates'){
+    const wood = std(0xc8904a), dark = std(0x8a5a2a);
+    for (const [x, y, sz] of [[-.5, .3, .6], [.15, .3, .6], [.75, .25, .5], [-.18, .82, .45]]){
+      rbox(sz, sz, sz, wood, x, y, 0, g, .04);
+      rbox(sz + .02, .07, sz + .02, dark, x, y, 0, g, .02); rbox(.07, sz + .02, sz + .02, dark, x, y, 0, g, .02);
+    }
+  } else if (kind === 'pots'){
+    for (const [x, s, c] of [[-.6, 1, 0xd8784a], [0, 1.15, 0x3aa0a0], [.62, .95, 0xe8b04a]]){
+      sph(.3*s, std(c), x, .33*s, 0, g, 1, 1.1, 1);
+      cyl(.13*s, .17*s, .2*s, std(c), x, .72*s, 0, g, 14);
+      torus(.2*s, .03, std(0xffffff), x, .38*s, 0, g).rotation.x = Math.PI/2;
+    }
+  } else if (kind === 'camel'){
+    const fur = std(0xd8a860);
+    sph(.42, fur, 0, .45, 0, g, 1.6, .75, .9);
+    sph(.28, fur, -.05, .82, 0, g, 1, 1, .9); sph(.24, fur, .45, .74, 0, g, 1, 1, .9);
+    caps(.1, .45, fur, -.72, .62, 0, g).rotation.z = -.6;
+    sph(.17, fur, -.92, .82, 0, g, 1.3, .9, .9);
+    for (const sx of [-1, 1]) sph(.035, std(0x15121a), -1.03, .88, sx*.09, g);
+    for (const x of [-.45, .45]) for (const z of [-.22, .22]) caps(.07, .12, fur, x, .14, z, g);
+    rbox(.5, .08, .7, std(0xe8323c), -.05, .98, 0, g, .03);
+  } else if (kind === 'cafe'){
+    cyl(.45, .45, .05, std(0xffffff), -.35, .72, 0, g, 18); cyl(.04, .04, .7, std(0x2a2a33), -.35, .36, 0, g, 8);
+    cyl(.22, .26, .04, std(0x2a2a33), -.35, .02, 0, g, 14);
+    for (const x of [.35, .8]){ rbox(.36, .05, .36, std(0xd8323c), x, .45, 0, g, .02); rbox(.36, .4, .05, std(0xd8323c), x, .66, .16, g, .02); for (const lx of [-.14, .14]) cyl(.025, .025, .45, std(0x2a2a33), x + lx, .22, -.12, g, 6); }
+    cyl(.07, .06, .14, std(0xffffff), -.45, .82, .08, g, 10); sph(.08, std(0xd8a040), -.2, .8, -.1, g, 1.6, .6, .8);
+  } else if (kind === 'drums'){
+    for (const [x, c] of [[-.6, 0xffd23a], [0, 0x3ac850], [.6, 0x2f6bff]]){
+      cyl(.27, .27, .62, std(c), x, .31, 0, g, 18); cyl(.28, .28, .04, std(0xf4f0e8), x, .63, 0, g, 18);
+      for (const y of [.12, .5]) torus(.28, .02, std(0xffffff), x, y, 0, g).rotation.x = Math.PI/2;
+    }
+  } else if (kind === 'lanterns'){
+    for (const x of [-.62, .62]){
+      rbox(.4, .12, .4, std(0x9a9aa0), x, .06, 0, g, .03); cyl(.08, .1, .38, std(0x9a9aa0), x, .31, 0, g, 10);
+      rbox(.34, .24, .34, std(0x8a8a90), x, .62, 0, g, .04); rbox(.18, .12, .36, glowMat(0xffd27a), x, .62, 0, g, .02);
+      cone(.34, .2, std(0x6a6a72), x, .84, 0, g, 4).rotation.y = Math.PI/4;
+    }
+    rbox(.5, .05, .5, std(0x3aa84a), 0, .03, 0, g, .02);
   } else if (kind === 'goldbars'){
     const gold = glossy(0xffcf3a, 0x3a2600);
     const rows = [[-.56, -.18, .2, .56], [-.37, 0, .37], [-.18, .18]];
@@ -130,15 +179,35 @@ function lowObstacle(kind, g){
     sph(.08, glowMat(0xff9a2a), .8, .9, 0, g);
   }
 }
+// Obstacles are built once per look, merged, and then cloned (clones share geometry and materials)
+const obstacleTemplates = new Map();
 function makeObstacle(type, lane, z){
-  const x = LANES[lane], g = new THREE.Group();
+  const W = WORLDS[worldIdx];
+  let variant = '', bannerTex = null;
+  if (type === 'barrier') variant = W.low;
+  else if (type === 'train' || type === 'mtrain') variant = W.train;
+  else if (type === 'bar'){
+    const cb = countryById(save.country).banner;
+    if (cb && Math.random() < .5){ variant = 'c' + cb; bannerTex = countryBanner(cb); }
+    else { const i = (Math.random()*BANNERS.length)|0; variant = 'b' + i; bannerTex = BANNERS[i]; }
+  }
+  const key = type + '|' + variant;
+  let tpl = obstacleTemplates.get(key);
+  if (!tpl){ tpl = buildObstacle(type, bannerTex); obstacleTemplates.set(key, tpl); }
+  const g = tpl.g.clone(true), o = Object.assign({}, tpl.o);
+  g.position.set(LANES[lane], 0, z);
+  o.mesh = g; o.lane = lane; o.kind = 'obstacle';
+  return addObj(o);
+}
+function buildObstacle(type, bannerTex){
+  const g = new THREE.Group();
   let o;
   if (type === 'barrier'){
     lowObstacle(WORLDS[worldIdx].low, g);
     o = {type, hw:.95, hd:.2, y0:0, y1:.82};
   } else if (type === 'bar'){
     for (const sx of [-1, 1]){ cyl(.07, .08, 2.45, std(0x2b2d3a, .4, .3), sx, 1.22, 0, g, 12); sph(.1, std(0x2b2d3a), sx, 2.47, 0, g); }
-    const bm = texMat(BANNERS[(Math.random()*BANNERS.length)|0]);
+    const bm = texMat(bannerTex);
     const banner = new THREE.Mesh(roundBoxGeo(2.0, .85, .1, .04), [std(0x888888), std(0x888888), std(0x888888), std(0x888888), bm, bm]);
     banner.position.y = 1.78; g.add(banner);
     o = {type, hw:1.0, hd:.18, y0:1.3, y1:2.4};
@@ -188,10 +257,9 @@ function makeObstacle(type, lane, z){
     for (const sx of [-.92, .92]) for (const sz of [-2, 2]) wheel(sx, .45, sz, g);
     o = {type, hw:1.0, hd:3.0, y0:0, y1:2.7};
   }
-  castAll(g);
-  g.position.set(x, 0, z);
-  o.mesh = g; o.lane = lane; o.kind = 'obstacle';
-  return addObj(o);
+  castAll(g); mergeTree(g);
+  g.traverse(m => { if (m.geometry) m.geometry.userData.shared = true; });
+  return {g, o};
 }
 // Height of what you can stand on at (x, z): train roofs and ramps
 function groundAt(x, z){
@@ -199,7 +267,7 @@ function groundAt(x, z){
   for (const o of objs){
     if (o.kind !== 'obstacle' || o.hit || (o.type !== 'train' && o.type !== 'ramp')) continue;
     const p = o.mesh.position;
-    if (Math.abs(p.x - x) > .95) continue;
+    if (Math.abs(p.x - x) > 1.2) continue;
     const dz = z - p.z;
     if (o.type === 'train'){ if (Math.abs(dz) < o.hd + .05 && TRAIN_H > h){ h = TRAIN_H; ramp = false; } }
     else if (Math.abs(dz) <= 2.6){ const v = TRAIN_H*(2.6 - dz)/5.2; if (v > h){ h = v; ramp = true; } }
@@ -207,7 +275,7 @@ function groundAt(x, z){
   return {h, ramp};
 }
 function makeCoin(lane, z, y){
-  const m = new THREE.Mesh(coinGeo, coinMat); m.position.set(LANES[lane], y, z);
+  const m = new THREE.Object3D(); m.position.set(LANES[lane], y, z);
   return addObj({kind:'coin', mesh:m});
 }
 const POWER_INFO = {
@@ -223,7 +291,7 @@ function makePower(type, lane, z){
     inner.add(new THREE.Mesh(new THREE.IcosahedronGeometry(.34, 2), new THREE.MeshPhongMaterial({color:0x4aa8ff, emissive:0x1a4a99, transparent:true, opacity:.88, shininess:120, specular:0xffffff})));
     sph(.12, glowMat(0xdff2ff), 0, 0, 0, inner);
   } else if (type === 'double'){
-    rbox(.55, .55, .55, new THREE.MeshPhongMaterial({map:x2Tex, emissive:0x3a2000, shininess:60}), 0, 0, 0, inner, .1);
+    rbox(.55, .55, .55, toon({map:x2Tex, emissive:0x3a2000}), 0, 0, 0, inner, .1);
   } else if (type === 'jet'){
     for (const sx of [-.13, .13]){ cyl(.1, .1, .46, glossy(0xc8ccd4), sx, 0, 0, inner, 14); cone(.1, .14, glossy(0xe8323c), sx, .3, 0, inner, 14); cone(.07, .2, glowMat(0xffa030), sx, -.33, 0, inner, 10).rotation.x = Math.PI; }
     rbox(.34, .28, .08, std(0x4a4f5a), 0, 0, .1, inner, .03);
@@ -238,6 +306,7 @@ function makePower(type, lane, z){
   torus(.5, .03, glowMat(colors[type]), 0, -.55, 0, g).rotation.x = Math.PI/2;
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({map: glowTex, color: colors[type], transparent:true, opacity:.55, blending: THREE.AdditiveBlending, depthWrite:false}));
   glow.scale.set(1.8, 1.8, 1); g.add(glow);
+  outlineAll(g); mergeTree(g);
   g.position.set(LANES[lane], 1.0, z);
   return addObj({kind:'power', type, mesh:g, inner});
 }

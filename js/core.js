@@ -6,7 +6,7 @@ const slotCache = [];
 function defaultSave(){
   return {v:2, coins:0, best:0, owned:['mouadz'], skin:'mouadz', chOwned:['classic'], chaser:'classic',
           muted:false, crates:1, stats:{}, missions:{}, savedAt:0,
-          upgrades:{}, daily:{last:'', streak:0}, settings:{music:true, shadows:true}};
+          upgrades:{}, daily:{last:'', streak:0}, settings:{music:true, shadows:true, quality: (window.matchMedia && matchMedia('(pointer: coarse)').matches) ? 'mid' : 'high'}, country:'usa', played:[]};
 }
 function sanitize(o){
   const d = defaultSave();
@@ -22,7 +22,13 @@ function sanitize(o){
   if (o.missions && typeof o.missions === 'object') for (const m of MISSIONS) d.missions[m.id] = Math.min(num(o.missions[m.id]), m.targets.length);
   if (o.upgrades && typeof o.upgrades === 'object') for (const u of UPGRADES) d.upgrades[u.id] = Math.min(num(o.upgrades[u.id]), UPGRADE_MAX);
   if (o.daily && typeof o.daily === 'object'){ d.daily.last = typeof o.daily.last === 'string' ? o.daily.last.slice(0, 10) : ''; d.daily.streak = Math.min(num(o.daily.streak), 10000); }
-  if (o.settings && typeof o.settings === 'object'){ d.settings.music = o.settings.music !== false; d.settings.shadows = o.settings.shadows !== false; }
+  if (o.settings && typeof o.settings === 'object'){
+    d.settings.music = o.settings.music !== false; d.settings.shadows = o.settings.shadows !== false;
+    d.settings.quality = ['high', 'mid', 'low'].includes(o.settings.quality) ? o.settings.quality : (o.settings.shadows === false ? 'mid' : d.settings.quality);
+  }
+  if (Array.isArray(o.played)) d.played = [...new Set(o.played.filter(id => COUNTRIES.some(c => c.id === id)))];
+  d.country = COUNTRIES.some(c => c.id === o.country) ? o.country : 'usa';
+  if (countryById(d.country).need > d.best) d.country = 'usa';
   return d;
 }
 function readSlot(i){
@@ -136,6 +142,7 @@ function upgradesOwned(){ return UPGRADES.reduce((a, u) => a + (save.upgrades[u.
 function getStat(m){
   if (m.stat === 'skinsOwned') return save.owned.length + save.chOwned.length;
   if (m.stat === 'upgradesOwned') return upgradesOwned();
+  if (m.stat === 'countriesPlayed') return save.played.length;
   return Math.floor(save.stats[m.stat] || 0);
 }
 function missionLevels(){ return MISSIONS.reduce((a, m) => a + (save.missions[m.id] || 0), 0); }

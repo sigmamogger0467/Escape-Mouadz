@@ -202,6 +202,30 @@ textarea#saveCode{width:100%;min-height:76px;font-family:ui-monospace,Menlo,Cons
 .world-pill{font-size:13px;font-weight:600;padding:4px 12px}
 .cloud-line{margin:0;font-size:13px;font-weight:600;line-height:1.45;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid var(--panel-line)}
 .cloud-line.ok{color:var(--ok)} .cloud-line.warn{color:#ffd27a}
+/* countries */
+.country-btn{width:100%;display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:16px;border:1px solid var(--panel-line);background:var(--panel);box-shadow:0 5px 0 rgba(0,0,0,.4);text-align:left}
+.country-btn:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.4)}
+.cflag{font-size:34px;line-height:1}
+.cinfo{display:flex;flex-direction:column;min-width:0}
+.cinfo small{font-size:10px;letter-spacing:.14em;color:var(--muted);font-weight:600}
+.cinfo b{font-family:var(--display);font-weight:400;font-size:20px;white-space:nowrap}
+.cworlds{flex:1;min-width:0;font-size:16px;letter-spacing:2px;white-space:nowrap;overflow:hidden;text-overflow:clip;opacity:.85}
+.chev{font-family:var(--display);font-size:12px;color:var(--gold);white-space:nowrap}
+.country-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;overflow-y:auto;min-height:0;max-height:52vh;touch-action:pan-y;padding:2px}
+.ccard{border-radius:16px;border:2px solid var(--panel-line);background:rgba(255,255,255,.05);padding:12px;display:flex;flex-direction:column;gap:6px;text-align:left}
+.ccard .top{display:flex;align-items:center;gap:10px}
+.ccard .flag{font-size:34px;line-height:1}
+.ccard h4{margin:0;font-family:var(--display);font-weight:400;font-size:18px}
+.ccard .ws{font-size:12.5px;color:var(--muted);line-height:1.45}
+.ccard .st{font-size:12px;font-weight:800;color:var(--ok);letter-spacing:.06em}
+.ccard.sel{border-color:var(--gold);background:rgba(255,200,61,.12)}
+.ccard.locked{opacity:.6}
+.ccard.locked .st{color:#ffd27a}
+.ccard .bar{height:6px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden}
+.ccard .bar b{display:block;height:100%;background:var(--gold)}
+.cards .card .fl{font-size:34px;line-height:1.1}
+.ctw{display:inline-block;margin-right:10px;white-space:nowrap}
+@media (max-width:480px){ .cworlds{display:none} .country-grid{grid-template-columns:1fr 1fr;max-height:58vh} .ccard{padding:10px} .ccard h4{font-size:15px} }
 /* overhaul additions */
 .score-row{display:flex;align-items:center;gap:8px}
 .mult{font-family:var(--display);font-size:15px;color:#2a1700;background:var(--gold);padding:3px 8px;border-radius:8px;box-shadow:0 3px 0 var(--gold-deep)}
@@ -269,6 +293,7 @@ textarea#saveCode{width:100%;min-height:76px;font-family:ui-monospace,Menlo,Cons
     <p>Lauf vor Trump und ICE weg!</p>
   </div>
   <div class="menu-bottom">
+    <button class="country-btn" id="countryBtn" aria-label="Land wählen"><span class="cflag" id="cFlag">🇺🇸</span><span class="cinfo"><small>LAND</small><b id="cName">USA</b></span><span class="cworlds" id="cWorlds"></span><span class="chev">WECHSELN ▸</span></button>
     <div class="stats">
       <div class="stat"><small>Rekord</small><strong id="mBest">0</strong></div>
       <div class="stat"><small>Münzen</small><strong><span class="coin-dot"></span><span id="mCoins">0</span></strong></div>
@@ -328,6 +353,22 @@ textarea#saveCode{width:100%;min-height:76px;font-family:ui-monospace,Menlo,Cons
   </div>
 </section>
 
+<section id="countries" class="screen page" hidden>
+  <div class="page-top">
+    <h2>LÄNDER</h2>
+    <div class="pill">🏆 Rekord <span id="ctBest">0</span></div>
+  </div>
+  <div class="sheet">
+    <div class="skin-info"><div><h3 id="ctName">USA</h3><p id="ctWorlds"></p></div></div>
+    <div class="cards" id="countryList"></div>
+    <p class="hint" style="text-align:left">Das Land bestimmt deine Welten. Im Lauf wechselst du mit steigender Punktzahl in die nächste Welt. Neue Länder schaltest du mit deinem Rekord frei.</p>
+    <div class="btn-row">
+      <button class="btn small" id="countriesBack">ZURÜCK</button>
+      <button class="btn primary small" id="countryAction">AUSWÄHLEN</button>
+    </div>
+  </div>
+</section>
+
 <section id="settings" class="screen page" hidden>
   <div class="page-top"><h2>EINSTELLUNGEN</h2></div>
   <div class="sheet grow">
@@ -335,7 +376,7 @@ textarea#saveCode{width:100%;min-height:76px;font-family:ui-monospace,Menlo,Cons
       <div class="toggles">
         <button class="toggle" id="tgMusic">🎵 Musik <b>AN</b></button>
         <button class="toggle" id="tgSound">🔊 Sound <b>AN</b></button>
-        <button class="toggle" id="tgShadows">🌗 Schatten <b>AN</b></button>
+        <button class="toggle" id="tgQuality">🎨 Grafik <b>HOCH</b></button>
       </div>
       <span class="field-label">Speicherstand</span>
       <p class="cloud-line" id="cloudStatus"></p>
