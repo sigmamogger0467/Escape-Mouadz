@@ -17,7 +17,7 @@ function textTex(text, bg, fg){
   return canvasTex(256, 96, (g, w, h) => {
     g.fillStyle = bg; g.fillRect(0, 0, w, h);
     g.strokeStyle = fg; g.lineWidth = 6; g.strokeRect(6, 6, w - 12, h - 12);
-    g.fillStyle = fg; g.font = '900 44px Impact, Arial Black, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = fg; g.font = "44px 'Luckiest Guy', Impact, 'Arial Black', sans-serif"; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText(text, w/2, h/2 + 2);
   });
 }
@@ -36,14 +36,14 @@ const busFront = canvasTex(128, 128, (g, w, h) => {
 });
 const suvSide = canvasTex(256, 96, (g, w, h) => {
   g.fillStyle = '#16181e'; g.fillRect(0, 0, w, h);
-  g.fillStyle = '#ffffff'; g.font = '900 46px Impact, Arial Black, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = '#ffffff'; g.font = "46px 'Luckiest Guy', Impact, 'Arial Black', sans-serif"; g.textAlign = 'center'; g.textBaseline = 'middle';
   g.fillText('ICE', w/2, h/2 - 4);
   g.fillStyle = '#ffd23a'; g.fillRect(0, h - 18, w, 6);
 });
 const suvBack = canvasTex(128, 96, (g, w, h) => {
   g.fillStyle = '#16181e'; g.fillRect(0, 0, w, h);
   g.fillStyle = '#ff3030'; g.fillRect(6, 58, 20, 14); g.fillRect(w - 26, 58, 20, 14);
-  g.fillStyle = '#ffffff'; g.font = '900 30px Impact, Arial Black, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('ICE', w/2, 64);
+  g.fillStyle = '#ffffff'; g.font = "30px 'Luckiest Guy', Impact, 'Arial Black', sans-serif"; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('ICE', w/2, 64);
 });
 const suvGlass = canvasTex(128, 64, (g, w, h) => { g.fillStyle = '#16181e'; g.fillRect(0, 0, w, h); g.fillStyle = '#2b3446'; g.fillRect(8, 8, w - 16, h - 16); });
 const sirenRed = new THREE.MeshBasicMaterial({color:0xff2020}), sirenBlue = new THREE.MeshBasicMaterial({color:0x2050ff});

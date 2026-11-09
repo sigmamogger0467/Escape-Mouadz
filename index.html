@@ -7,7 +7,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;600;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Fredoka:wght@400;500;600;700&display=swap">
 <style>
 /* Layout: full-bleed WebGL street at dusk; HUD floats at the screen edges, menus are panels over the live 3D scene */
 :root{
@@ -21,8 +21,9 @@
   --red:#e8323c;
   --blue:#2f6bff;
   --ok:#3ddc84;
-  --display:'Bungee', Impact, 'Arial Black', system-ui, sans-serif;
-  --body:'Rubik', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --display:'Luckiest Guy', 'Arial Black', Impact, system-ui, sans-serif;
+  --body:'Fredoka', 'Trebuchet MS', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --ink-dark:#2a0f4a;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
@@ -264,6 +265,44 @@ textarea#saveCode{width:100%;min-height:76px;font-family:ui-monospace,Menlo,Cons
 @media (max-width:480px){ .daily-grid{grid-template-columns:repeat(4,minmax(0,1fr))} .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;width:100%} .stat{min-width:0;padding:5px 4px} .stat strong{font-size:16px} .stat small{font-size:9.5px;letter-spacing:.06em} .top-icons{gap:6px} .icon-btn{width:40px;height:40px} }
 @media (prefers-reduced-motion: reduce){ .day.today,#coinPill.bump{animation:none} }
 @media (prefers-reduced-motion: reduce){ .fired,.crate-result,#toast,#turnHint,#worldBanner{animation:none} .crate-box.shake{animation:none} }
+
+/* ---------- type that stands out: thick ink outline, gradient title, pop-in motion ---------- */
+.title h1,.page-top h2,#score,.fired,#worldBanner,#pause h2,.daily-box h2,.crate-result h3,.skin-info h3,.mult,.stat strong{
+  -webkit-text-stroke:.085em var(--ink-dark);paint-order:stroke fill;letter-spacing:.03em}
+.title h1{font-size:clamp(42px,min(12.5vw,8.6vh),100px);line-height:1;padding:0 .1em .06em;letter-spacing:.02em;
+  background:linear-gradient(180deg,#fff7a8 0%,#ffd23a 48%,#ff8a1a 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:none;filter:drop-shadow(0 6px 0 var(--ink-dark)) drop-shadow(0 12px 18px rgba(0,0,0,.45));
+  animation:titleIn .7s cubic-bezier(.2,1.5,.4,1) both, titleIdle 3.2s ease-in-out .7s infinite alternate}
+.title h1 small{font-size:.5em;background:linear-gradient(180deg,#ffffff,#d8e4ff);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;letter-spacing:.12em}
+.title p{margin-top:-.1em;font-family:var(--display);font-weight:400;letter-spacing:.04em;font-size:clamp(15px,3.6vw,21px);padding:6px 14px 3px;box-shadow:0 4px 0 #7a0f16;animation:popIn .5s .35s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes titleIn{from{transform:scale(.4) rotate(-8deg);opacity:0}to{transform:scale(1) rotate(-2deg);opacity:1}}
+@keyframes titleIdle{from{transform:rotate(-2deg) scale(1)}to{transform:rotate(1.5deg) scale(1.03)}}
+@keyframes popIn{from{transform:scale(.5) rotate(-6deg);opacity:0}to{transform:scale(1) rotate(-2deg);opacity:1}}
+.page-top h2,.daily-box h2{text-shadow:0 5px 0 var(--ink-dark);font-size:clamp(28px,7vw,46px);letter-spacing:.04em}
+#score{font-size:clamp(34px,7vw,52px);color:#fff;text-shadow:0 4px 0 var(--ink-dark)}
+.btn{font-size:21px;letter-spacing:.05em;padding-top:17px;padding-bottom:14px}
+.btn.small{font-size:16px;padding-top:13px;padding-bottom:10px}
+.btn.primary{color:#3a1400}
+.fired{-webkit-text-stroke:.07em #5a0a10;letter-spacing:.04em}
+#worldBanner{font-size:clamp(32px,8vw,64px);color:#fff;text-shadow:0 6px 0 var(--ink-dark)}
+#worldBanner small{font-family:var(--display);font-size:16px;letter-spacing:.24em;-webkit-text-stroke:0}
+.stat strong{font-size:24px;-webkit-text-stroke:.06em var(--ink-dark)}
+.mult{-webkit-text-stroke:0;font-size:17px;padding-top:5px}
+#turnHint,#warn,.cinfo b,.chev,.tab,.newbest{font-family:var(--display);font-weight:400;letter-spacing:.05em}
+.tab{font-size:15px;padding-top:11px;padding-bottom:7px}
+/* screens and sheets glide in */
+.screen:not([hidden]) > .sheet,.daily-box,.screen:not([hidden]) > .panel-col,.menu-bottom{animation:sheetIn .42s cubic-bezier(.2,1.25,.4,1) both}
+.screen:not([hidden]) > .page-top{animation:sheetIn .38s cubic-bezier(.2,1.25,.4,1) both}
+@keyframes sheetIn{from{transform:translateY(28px) scale(.97);opacity:0}to{transform:none;opacity:1}}
+.menu-actions .btn,.country-btn,.stat{animation:btnIn .45s cubic-bezier(.2,1.5,.4,1) both}
+.menu-actions .btn:nth-child(2){animation-delay:.06s}.menu-actions .btn:nth-child(3){animation-delay:.12s}
+@keyframes btnIn{from{transform:scale(.7);opacity:0}to{transform:none;opacity:1}}
+.btn.primary#playBtn{animation:btnIn .45s cubic-bezier(.2,1.5,.4,1) both, playPulse 1.6s ease-in-out .8s infinite}
+@keyframes playPulse{50%{transform:scale(1.04)}}
+.card,.upg,.mission{transition:transform .12s ease}
+.card:active{transform:scale(.94)}
+@media (prefers-reduced-motion: reduce){ .title h1,.title p,.menu-bottom,.daily-box,.menu-actions .btn,.country-btn,.stat,.btn.primary#playBtn{animation:none}
+  .screen:not([hidden]) > .sheet,.screen:not([hidden]) > .page-top,.screen:not([hidden]) > .panel-col{animation:none} }
 </style>
 </head>
 <body>

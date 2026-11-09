@@ -14,12 +14,20 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 400);
 
+// Textures with lettering are redrawn once the cartoon font has loaded
+const fontTextures = [];
 function canvasTex(w, h, draw){
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   draw(c.getContext('2d'), w, h);
   const t = new THREE.CanvasTexture(c);
   t.anisotropy = 4;
+  if (String(draw).includes('.font')) fontTextures.push({c, draw, t});
   return t;
+}
+if (document.fonts && document.fonts.load){
+  document.fonts.load("40px 'Luckiest Guy'").then(() => {
+    for (const f of fontTextures){ const g = f.c.getContext('2d'); g.clearRect(0, 0, f.c.width, f.c.height); f.draw(g, f.c.width, f.c.height); f.t.needsUpdate = true; }
+  }).catch(() => {});
 }
 scene.fog = new THREE.Fog(0xb5607a, 40, 170);
 const hemi = new THREE.HemisphereLight(0xffe2c8, 0x3a3060, 0.95); scene.add(hemi);
@@ -107,7 +115,7 @@ function labelTex(lines, bg, fg, w, h){
     const n = lines.length;
     lines.forEach((ln, i) => {
       const size = ln.size || Math.floor(H/(n + .4));
-      g.font = `900 ${size}px Impact, 'Arial Black', sans-serif`;
+      g.font = `${size}px 'Luckiest Guy', Impact, 'Arial Black', sans-serif`;
       g.fillText(ln.t, W/2, H*(i + .5)/n + 2);
     });
   });

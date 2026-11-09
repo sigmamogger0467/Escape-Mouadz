@@ -365,7 +365,7 @@ function renderCountries(){
   }
   const c = countryById(ctPreview), open = save.best >= c.need, act = $('countryAction');
   $('ctName').textContent = `${c.flag} ${c.name}`;
-  $('ctWorlds').innerHTML = c.worlds.map((w, i) => `<span class="ctw">${w.emoji} ${w.name}${i ? ` <small>ab ${fmt(w.at)}</small>` : ''}</span>`).join('');
+  $('ctWorlds').innerHTML = c.worlds.map(w => `<span class="ctw">${w.emoji} ${w.name}</span>`).join('');
   if (c.id === save.country){ act.textContent = 'AUSGEWÄHLT ✓'; act.disabled = true; }
   else if (open){ act.textContent = 'AUSWÄHLEN'; act.disabled = false; }
   else { act.textContent = `NOCH ${fmt(c.need - save.best)} PUNKTE`; act.disabled = true; }

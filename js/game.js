@@ -87,6 +87,7 @@ function resetGame(){
     t:0, speed:12, dist:0, coins:0, lane:1, prevLane:1, x:0, y:0, vy:0, grounded:true, gy:0, slide:0, queueSlide:false,
     stumbleT:0, closeT:2.2, closeFromStumble:false, invuln:0, chaseDist:4.0, chaseX:0, chaseY:0,
     magnet:0, shield:0, double:0, turbo:0, jet:0, score:0, mult: scoreMultiplier(), lastD:0, smashT:0,
+    stage:0, jumpT:0, trick:false, squashT:0, worldsSeen:1,
     spawnZ:-45, lineT:1.2, shake:0, caughtT:0, caughtReason:'', lastWallLine:0, lastIceLine:0, pendingLine:null, missionT:0,
     junction:null, turning:null, turnQueued:0, nextJunction: 300 + Math.random()*150, mPlan:null, roofAcc:0
   });
@@ -169,9 +170,15 @@ function moveLane(dir){
   const n = Math.max(0, Math.min(2, G.lane + dir));
   if (n !== G.lane){ G.prevLane = G.lane; G.lane = n; }
 }
+// score needed for the n-th world of a run: the country's list first, then every further world needs 1.45x more
+function stageAt(n){
+  const last = WORLDS.length - 1;
+  if (n <= last) return WORLDS[n].at;
+  return Math.round(WORLDS[last].at*Math.pow(1.45, n - last));
+}
 function jump(){
   if (state !== 'running') return;
-  if (G.grounded && G.jet <= 0){ G.vy = 11; G.grounded = false; G.slide = 0; sfx('jump'); addStat('jumps', 1); }
+  if (G.grounded && G.jet <= 0){ G.vy = 11; G.grounded = false; G.slide = 0; G.jumpT = 0; G.trick = Math.random() < .3; sfx('jump'); addStat('jumps', 1); }
 }
 function startSlide(){ G.slide = .75; sfx('slide'); addStat('slides', 1); }
 function slide(){
@@ -250,7 +257,7 @@ function caught(reason){
   $('oDist').textContent = fmt(G.dist);
   $('oCoins').textContent = '+' + earned;
   $('newBest').hidden = !res.isBest;
-  $('overWorld').textContent = `Welt erreicht: ${W.emoji} ${W.name}`;
+  $('overWorld').textContent = `Erreicht: ${W.emoji} ${W.name}` + (G.stage ? ` · ${G.stage} Weltwechsel` : '');
   $('savedNote').textContent = cloud.ready ? `☁️ Gespeichert in Spielstand ${slot + 1} (Cloud)` : `💾 Gespeichert in Spielstand ${slot + 1}`;
   $('overSub').textContent = reason === 'crash' ? 'Volle Kanne dagegen gerannt. Er hat dich erwischt.'
     : reason === 'dead-end' ? 'Nicht abgebogen und gegen die Hauswand. Er hat dich erwischt.'
@@ -300,9 +307,14 @@ function update(dt){
   G.dist += d; G.score += d*G.mult; G.lastD = 0;
   addStat('distTotal', d); maxStat('bestDist', G.dist);
 
-  const sc = G.score;
-  let wi = 0; for (let i = 0; i < WORLDS.length; i++) if (sc >= WORLDS[i].at) wi = i;
-  if (wi > worldIdx){ setWorld(wi, false); maxStat('worldMax', wi); music.root = MUSIC_ROOTS[wi]; say("Auch diese Welt gehört bald mir!", 2.4); }
+  // next world: first the country's worlds in order, then random ones with exponentially rising thresholds
+  if (G.score >= stageAt(G.stage + 1)){
+    G.stage++;
+    let wi = G.stage;
+    if (wi >= WORLDS.length){ do { wi = (Math.random()*WORLDS.length)|0; } while (wi === worldIdx && WORLDS.length > 1); }
+    setWorld(wi, false); maxStat('worldMax', G.stage); music.root = MUSIC_ROOTS[wi % MUSIC_ROOTS.length];
+    say(pick(["Auch diese Welt gehört bald mir!", "Ich kaufe diese Stadt!", "Du kannst nicht ewig rennen!"]), 2.4);
+  }
 
   G.stumbleT -= dt; G.invuln -= dt;
   const wasClose = G.closeT > 0;
@@ -366,7 +378,7 @@ function update(dt){
   if (!G.grounded){
     G.vy -= 34*dt; G.y += G.vy*dt;
     if (G.vy <= 0 && G.y <= gnd.h && (gnd.ramp || gnd.h - G.y < .9)){
-      if (G.vy < -8){ emit(G.x, gnd.h + .1, 0, 7, 0xd8d0c0, 1.6, .45, .9); sfx('land'); }
+      if (G.vy < -8){ emit(G.x, gnd.h + .1, 0, 7, 0xd8d0c0, 1.6, .45, .9); sfx('land'); G.squashT = .22; }
       G.y = gnd.h; G.vy = 0; G.grounded = true;
       if (G.queueSlide){ G.queueSlide = false; startSlide(); }
     }
@@ -374,6 +386,8 @@ function update(dt){
   }
   if (G.grounded && G.y > 2){ G.roofAcc += d; if (G.roofAcc >= 1){ addStat('roofDist', Math.floor(G.roofAcc)); G.roofAcc %= 1; } }
   G.slide = Math.max(0, G.slide - dt);
+  if (!G.grounded) G.jumpT += dt; else G.trick = false;
+  G.squashT = Math.max(0, G.squashT - dt);
 
   const ph = G.slide > 0 ? .9 : 2.0;
   for (let i = objs.length - 1; i >= 0; i--){
@@ -459,6 +473,7 @@ window.addEventListener('resize', resize); resize();
 let last = performance.now();
 function frame(now){
   requestAnimationFrame(frame);
+  if (window.__freeze){ last = now; renderScene(); return; }
   const dt = Math.min(.05, (now - last)/1000); last = now;
   const t = now/1000;
   const portrait = innerWidth/innerHeight < .8;
@@ -478,15 +493,15 @@ function frame(now){
     runner.group.visible = !(inShop && shopTab === 'chaser');
     runner.group.position.set(inShop ? 0 : (portrait ? -.35 : -.6), 0, 0);
     runner.group.rotation.set(0, inShop ? t*.7 : -.25, 0);
-    animRunner(runner, t, runner.cheerT > 0 ? 'cheer' : 'idle'); if (runner.cheerT > 0) runner.cheerT -= dt;
+    poseRunner(runner, t, runner.cheerT > 0 ? 'cheer' : 'idle', dt); if (runner.cheerT > 0) runner.cheerT -= dt;
     trump.group.visible = state !== 'countries' && (!inShop || shopTab === 'chaser');
     if (inShop){ trump.group.position.set(0, 0, 0); trump.group.rotation.y = t*.7; }
     else { trump.group.position.set(tx, 0, 2.8); trump.group.rotation.y = portrait ? -.15 : -.35; }
-    animTrump(trump, t, 'point');
+    poseTrump(trump, t, 'point', dt);
     agents.forEach((a, i) => {
       a.group.visible = !inShop && state !== 'countries';
       a.group.position.set(tx + (i ? 1.25 : -1.25), 0, 4.6); a.group.rotation.y = 0;
-      animRunner(a, t + i, 'grab');
+      poseRunner(a, t + i, 'grab', dt);
     });
     if (state === 'countries'){ camPos.set(0, 3.2, 9); camLook.set(0, portrait ? -9 : -4, -80); }
     else if (!inShop){ camPos.set(portrait ? .3 : .9, 2.0, portrait ? -7.6 : -6.0); camLook.set(portrait ? .3 : .6, portrait ? 1.6 : 1.45, 0); }
@@ -503,7 +518,11 @@ function frame(now){
     else if (!G.grounded) mode = 'jump';
     else if (G.slide > 0) mode = 'slide';
     const at = state === 'paused' ? 0 : t;
-    animRunner(runner, G.turbo > 0 ? at*1.5 : at, mode);
+    const lean = Math.max(-.35, Math.min(.35, -(LANES[G.lane] - G.x)*.16));
+    poseRunner(runner, G.turbo > 0 ? at*1.5 : at, mode, state === 'paused' ? 0 : dt, {
+      lean, vy: G.vy, jt: G.jumpT, trick: G.trick && mode === 'jump', p: mode === 'slide' ? 1 - G.slide/.75 : mode === 'fall' ? G.caughtT - .15 : 0,
+      squash: G.squashT > 0 ? Math.sin(Math.PI*(1 - G.squashT/.22)) : 0});
+    if (G.turning){ const k = Math.min(1, G.turning.t/G.turning.dur); runner.group.rotation.y = -G.turning.dir*Math.sin(Math.PI*k)*.6; }
     runner.shadow.position.y = .02 + Math.min(0, G.gy - G.y); runner.shadow.scale.setScalar(Math.max(.4, 1 - (G.y - G.gy)*.25));
     runner.group.visible = !(G.invuln > 0 && state === 'running' && Math.floor(t*16) % 2 === 0);
     if (!runner.shieldMesh){
@@ -518,7 +537,7 @@ function frame(now){
     trump.group.visible = true;
     trump.group.position.set(G.chaseX + (caughtMode ? .3 : 0), G.chaseY, G.chaseDist);
     trump.group.rotation.y = 0;
-    animTrump(trump, at, !caughtMode || G.caughtT < .6 ? 'run' : G.caughtT < 1.4 ? 'angry' : 'point');
+    poseTrump(trump, at, !caughtMode || G.caughtT < .6 ? 'run' : G.caughtT < 1.4 ? 'angry' : 'point', state === 'paused' ? 0 : dt);
     agents.forEach((a, i) => {
       a.group.visible = true;
       const ax = Math.max(-3, Math.min(3, G.chaseX + (i ? 1.7 : -1.7)));
@@ -526,7 +545,7 @@ function frame(now){
       const ay = canGround ? groundAt(ax, az).h : a.group.position.y;
       a.group.position.set(ax, a.group.position.y + (ay - a.group.position.y)*Math.min(1, dt*10), az);
       a.group.rotation.y = 0;
-      animRunner(a, at*.93 + i*.5, caughtMode && G.caughtT > .9 ? 'grab' : 'run');
+      poseRunner(a, at*.93 + i*.5, caughtMode && G.caughtT > .9 ? 'grab' : 'run', state === 'paused' ? 0 : dt);
     });
 
     if (caughtMode && G.caughtT > .5){
@@ -540,6 +559,11 @@ function frame(now){
   camera.position.copy(curPos);
   if (G.shake > 0){ camera.position.x += (Math.random() - .5)*G.shake*.6; camera.position.y += (Math.random() - .5)*G.shake*.6; }
   camera.lookAt(curLook);
+  // speed feel: the view widens with speed, turbo and jetpack; a slight roll follows lane changes
+  const baseFov = innerWidth/innerHeight < .8 ? 72 : 62;
+  const fovT = state === 'running' ? baseFov + Math.min(6, (G.speed - 14)*.25) + (G.turbo > 0 || G.jet > 0 ? 7 : 0) : baseFov;
+  if (Math.abs(camera.fov - fovT) > .05){ camera.fov += (fovT - camera.fov)*Math.min(1, dt*3); camera.updateProjectionMatrix(); }
+  if (state === 'running') camera.rotateZ((LANES[G.lane] - G.x)*.018);
 
   if (state === 'running' || state === 'paused'){
     $('score').textContent = fmt(G.score);

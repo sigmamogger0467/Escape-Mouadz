@@ -245,52 +245,102 @@ function buildRunner(s){
   return {group:g, body, legL:legs[0], legR:legs[1], armL:arms[0], armR:arms[1], head, cape, shadow, jet, zombie: s.extra === 'zombie' || s.extra === 'mummy'};
 }
 
-function animRunner(r, t, mode){
+/* ---- animation helpers: every pose is computed as a target, then blended from the last frame ---- */
+const smooth01 = x => { x = Math.max(0, Math.min(1, x)); return x*x*(3 - 2*x); };
+const wrapA = a => Math.atan2(Math.sin(a), Math.cos(a));
+function rigParts(r){ return r._parts || (r._parts = [r.body, r.legL, r.legR, r.armL, r.armR, r.head, r.cape].filter(Boolean)); }
+function blendPose(r, apply, rate, dt){
+  const parts = rigParts(r);
+  const prev = r._prev || parts.map(o => [o.position.x, o.position.y, o.position.z, o.rotation.x, o.rotation.y, o.rotation.z]);
+  apply();
+  const k = 1 - Math.exp(-dt*rate);
+  parts.forEach((o, i) => {
+    const p = prev[i];
+    o.position.set(p[0] + (o.position.x - p[0])*k, p[1] + (o.position.y - p[1])*k, p[2] + (o.position.z - p[2])*k);
+    o.rotation.set(p[3] + wrapA(o.rotation.x - p[3])*k, p[4] + wrapA(o.rotation.y - p[4])*k, p[5] + wrapA(o.rotation.z - p[5])*k);
+    p[0] = o.position.x; p[1] = o.position.y; p[2] = o.position.z; p[3] = o.rotation.x; p[4] = o.rotation.y; p[5] = o.rotation.z;
+  });
+  r._prev = prev;
+}
+// rotate the body around a point at height c (a somersault pivots around the belly, not the feet)
+function pivotBody(body, phi, c, drop){
+  body.rotation.x = phi;
+  body.position.y = c - c*Math.cos(phi) - (drop || 0);
+  body.position.z = -c*Math.sin(phi);
+}
+function poseRunner(r, t, mode, dt, o){ blendPose(r, () => animRunner(r, t, mode, o || {}), mode === 'slide' || (o && o.trick) ? 26 : 16, dt || .016); }
+function poseTrump(r, t, mode, dt){ blendPose(r, () => animTrump(r, t, mode), 12, dt || .016); }
+
+function animRunner(r, t, mode, o){
+  o = o || {};
   const {legL, legR, armL, armR, body, cape, head} = r;
   const armBase = r.zombie ? 1.45 : 0;
   body.rotation.set(0, 0, 0); body.position.set(0, 0, 0); head.rotation.set(0, 0, 0);
   armL.rotation.set(0, 0, 0); armR.rotation.set(0, 0, 0); legL.rotation.set(0, 0, 0); legR.rotation.set(0, 0, 0);
+  const sq = o.squash || 0;
+  body.scale.set(1 + sq*.12, 1 - sq*.16, 1 + sq*.12);
   if (mode === 'run'){
-    const s = Math.sin(t*15), c = Math.cos(t*15);
-    legL.rotation.x = s*1.0; legR.rotation.x = -s*1.0;
-    armL.rotation.x = armBase - s*(r.zombie ? .15 : .9); armR.rotation.x = armBase + s*(r.zombie ? .15 : .9);
-    armL.rotation.z = -.12; armR.rotation.z = .12;
-    body.position.y = Math.abs(c)*.09; body.rotation.x = -.14; body.rotation.y = s*.06;
-    head.rotation.x = .06; head.rotation.y = -s*.04;
-    if (cape) cape.rotation.x = -.8 + Math.sin(t*22)*.12;
+    const ph = t*15, s = Math.sin(ph), c = Math.cos(ph);
+    legL.rotation.x = s*1.05; legR.rotation.x = -s*1.05;
+    armL.rotation.x = armBase - s*(r.zombie ? .15 : .95); armR.rotation.x = armBase + s*(r.zombie ? .15 : .95);
+    armL.rotation.z = -.14 - Math.max(0, s)*.12; armR.rotation.z = .14 + Math.max(0, -s)*.12;
+    body.position.y = Math.abs(c)*.1 - .02; body.rotation.x = -.16; body.rotation.y = s*.08;
+    body.rotation.z = (o.lean || 0) + s*.025;
+    head.rotation.x = .08 - Math.abs(c)*.04; head.rotation.y = -s*.06; head.rotation.z = -(o.lean || 0)*.5;
+    if (cape) cape.rotation.x = -.85 + Math.sin(t*22)*.14;
   } else if (mode === 'jump'){
-    legL.rotation.x = 1.1; legR.rotation.x = -.4;
-    armL.rotation.x = r.zombie ? armBase : 2.6; armR.rotation.x = r.zombie ? armBase : 2.3;
-    armL.rotation.z = -.3; armR.rotation.z = .3;
-    body.rotation.x = -.18; head.rotation.x = -.1;
-    if (cape) cape.rotation.x = -.35;
+    const vy = o.vy || 0, apex = 1 - Math.min(1, Math.abs(vy)/11);
+    if (o.trick){
+      // front flip: tuck up, spin once around the belly, open up for the landing
+      const p = Math.min(1, (o.jt || 0)/.62), tuck = Math.sin(Math.PI*p);
+      pivotBody(body, -Math.PI*2*smooth01(p), 1.0, 0);
+      legL.rotation.x = .5 + 1.7*tuck; legR.rotation.x = .3 + 1.8*tuck;
+      armL.rotation.set(r.zombie ? armBase : 1.6 - .3*tuck, 0, .3*tuck); armR.rotation.set(r.zombie ? armBase : 1.6 - .3*tuck, 0, -.3*tuck);
+      head.rotation.x = -.5*tuck;
+      if (cape) cape.rotation.x = -1.1;
+    } else {
+      legL.rotation.x = .9 + apex*.5; legR.rotation.x = -.4 + apex*.3;
+      armL.rotation.set(r.zombie ? armBase : 2.2 + apex*.5, 0, -.35); armR.rotation.set(r.zombie ? armBase : 2.0 + apex*.4, 0, .35);
+      body.rotation.x = -.1 - Math.max(-.25, Math.min(.25, vy*.025));
+      body.rotation.z = (o.lean || 0)*.8;
+      head.rotation.x = vy > 0 ? -.15 : .1;
+      if (cape) cape.rotation.x = vy > 0 ? -.3 : -1.2;
+    }
   } else if (mode === 'fly'){
     legL.rotation.x = .3 + Math.sin(t*6)*.15; legR.rotation.x = .1 - Math.sin(t*6)*.15;
     armL.rotation.set(-.2, 0, -1.1); armR.rotation.set(-.2, 0, 1.1);
-    body.rotation.x = -.35; body.position.y = Math.sin(t*4)*.06;
+    body.rotation.x = -.35; body.position.y = Math.sin(t*4)*.06; body.rotation.z = (o.lean || 0)*1.4;
+    head.rotation.x = -.2;
     if (cape) cape.rotation.x = -1.3;
   } else if (mode === 'slide'){
-    body.rotation.x = 1.2; body.position.y = .18;
-    legL.rotation.x = .25; legR.rotation.x = .15;
-    armL.rotation.x = r.zombie ? armBase : -.6; armR.rotation.x = r.zombie ? armBase : -.4;
-    head.rotation.x = -.5;
-    if (cape) cape.rotation.x = -1.2;
+    // forward roll: curl into a ball, roll once over the ground, uncurl
+    const p = o.p === undefined ? .5 : o.p;
+    const tuck = smooth01(Math.min(p/.16, (1 - p)/.16));
+    pivotBody(body, -Math.PI*2*smooth01((p - .08)/.84), .95, .42*tuck);
+    legL.rotation.x = 2.2*tuck; legR.rotation.x = 2.0*tuck;
+    armL.rotation.set(r.zombie ? armBase : 1.3*tuck, 0, .4*tuck); armR.rotation.set(r.zombie ? armBase : 1.3*tuck, 0, -.4*tuck);
+    head.rotation.x = -.7*tuck;
+    if (cape) cape.rotation.x = -1.4*tuck;
   } else if (mode === 'fall'){
-    body.rotation.x = -1.45; body.position.y = .2;
-    legL.rotation.x = -.4; legR.rotation.x = -.1;
-    armL.rotation.x = 2.8; armR.rotation.x = 2.6;
-    if (cape) cape.rotation.x = .6;
+    const fp = o.p === undefined ? 1 : Math.max(0, o.p), p = smooth01(fp/.45), b = Math.max(0, Math.sin(Math.min(1, fp/.6)*Math.PI))*.25*(fp < .6 ? 1 : 0);
+    body.rotation.x = -1.45*p; body.position.y = .2*p + b; body.position.z = -.4*p;
+    legL.rotation.x = -.5*p; legR.rotation.x = -.15*p;
+    armL.rotation.set(2.8*p, 0, -.4*p); armR.rotation.set(2.6*p, 0, .4*p);
+    head.rotation.x = .3*p;
+    if (cape) cape.rotation.x = .6*p;
   } else if (mode === 'grab'){
     armL.rotation.x = 1.3 + Math.sin(t*3)*.05; armR.rotation.x = .2;
+    head.rotation.y = Math.sin(t*1.3)*.2;
   } else if (mode === 'cheer'){
-    const s = Math.sin(t*8);
-    armL.rotation.set(2.7 + s*.2, 0, -.3); armR.rotation.set(2.7 - s*.2, 0, .3);
-    body.position.y = Math.abs(s)*.12;
+    const s = Math.sin(t*9);
+    armL.rotation.set(2.7 + s*.25, 0, -.35); armR.rotation.set(2.7 - s*.25, 0, .35);
+    body.position.y = Math.abs(s)*.14; head.rotation.x = -.15;
+    legL.rotation.x = Math.abs(s)*.3; legR.rotation.x = Math.abs(s)*.25;
   } else {
     const s = Math.sin(t*2.2);
     armL.rotation.x = armBase + s*.05; armR.rotation.x = armBase - s*.05;
-    armL.rotation.z = -.08; armR.rotation.z = .08;
-    body.position.y = s*.015; head.rotation.y = Math.sin(t*.7)*.2;
+    armL.rotation.z = -.1; armR.rotation.z = .1;
+    body.position.y = s*.015; body.rotation.x = s*.01; head.rotation.y = Math.sin(t*.7)*.25; head.rotation.x = Math.sin(t*.9)*.05;
     if (cape) cape.rotation.x = -.12 + s*.05;
   }
 }
@@ -461,24 +511,29 @@ function animTrump(r, t, mode){
   body.rotation.set(0, 0, 0); body.position.set(0, 0, 0); head.rotation.set(0, 0, 0);
   armL.rotation.set(0, 0, 0); armR.rotation.set(0, 0, 0); legL.rotation.set(0, 0, 0); legR.rotation.set(0, 0, 0);
   if (mode === 'run'){
-    const s = Math.sin(t*13);
-    legL.rotation.x = s*.85; legR.rotation.x = -s*.85;
+    const ph = t*13, s = Math.sin(ph);
+    legL.rotation.x = s*.9; legR.rotation.x = -s*.9;
     if (r.zombie){ armL.rotation.x = 1.45 + s*.1; armR.rotation.x = 1.45 - s*.1; }
-    else { armL.rotation.x = -s*1.1; armR.rotation.x = s*1.1; armL.rotation.z = -.35; armR.rotation.z = .35; }
-    body.position.y = Math.abs(Math.cos(t*13))*.1; body.rotation.x = -.14; body.rotation.y = s*.05;
-    head.rotation.z = Math.sin(t*6.5)*.06;
-    if (cape) cape.rotation.x = -.7 + Math.sin(t*20)*.1;
+    else {
+      // big flailing arms, half a beat late, for the comedic chase
+      const s2 = Math.sin(ph - .5);
+      armL.rotation.set(-s2*1.15 + .2, 0, -.45 - Math.abs(s2)*.2); armR.rotation.set(s2*1.15 + .2, 0, .45 + Math.abs(s2)*.2);
+    }
+    body.position.y = Math.abs(Math.cos(ph))*.12; body.rotation.x = -.18; body.rotation.y = s*.07; body.rotation.z = s*.04;
+    head.rotation.z = Math.sin(t*6.5)*.08; head.rotation.x = .05;
+    if (cape) cape.rotation.x = -.75 + Math.sin(t*20)*.12;
   } else if (mode === 'angry'){
     const s = Math.sin(t*14);
-    armL.rotation.set(2.5 + s*.3, 0, -.4); armR.rotation.set(2.5 - s*.3, 0, .4);
-    body.position.y = Math.abs(s)*.1; head.rotation.z = s*.08;
-    if (cape) cape.rotation.x = -.2;
+    armL.rotation.set(2.6 + s*.35, 0, -.45); armR.rotation.set(2.6 - s*.35, 0, .45);
+    body.position.y = Math.abs(s)*.12; head.rotation.z = s*.1; head.rotation.x = -.1;
+    legL.rotation.x = Math.abs(s)*.2;
+    if (cape) cape.rotation.x = -.25;
   } else {
     const s = Math.sin(t*3);
-    armR.rotation.x = 1.5 + s*.08; armR.rotation.z = .05;
-    armL.rotation.z = -.25 + s*.05; armL.rotation.x = .1;
-    head.rotation.y = s*.12; head.rotation.x = -.05;
-    body.position.y = Math.abs(s)*.02;
+    armR.rotation.x = 1.5 + s*.1; armR.rotation.z = .05;
+    armL.rotation.z = -.28 + s*.05; armL.rotation.x = .1;
+    head.rotation.y = s*.14; head.rotation.x = -.06;
+    body.position.y = Math.abs(s)*.025; body.rotation.y = -s*.04;
     if (cape) cape.rotation.x = -.15 + s*.04;
   }
 }
