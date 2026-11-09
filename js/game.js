@@ -501,11 +501,11 @@ function frame(now){
     runner.group.visible = !(inShop && shopTab === 'chaser');
     runner.group.position.set(inShop ? 0 : (portrait ? -.35 : -.6), 0, 0);
     runner.group.rotation.set(0, inShop ? t*.7 : -.25, 0);
-    poseRunner(runner, t, runner.cheerT > 0 ? 'cheer' : 'idle', dt); if (runner.cheerT > 0) runner.cheerT -= dt;
+    poseRunner(runner, t, runner.cheerT > 0 || (inShop && t % 5 > 3.1) ? 'cheer' : 'idle', dt); if (runner.cheerT > 0) runner.cheerT -= dt;
     trump.group.visible = state !== 'countries' && (!inShop || shopTab === 'chaser');
     if (inShop){ trump.group.position.set(0, 0, 0); trump.group.rotation.y = t*.7; }
     else { trump.group.position.set(tx, 0, 2.8); trump.group.rotation.y = portrait ? -.15 : -.35; }
-    poseTrump(trump, t, 'point', dt);
+    poseTrump(trump, t, inShop && t % 6 < 3.6 ? 'run' : 'point', dt);
     agents.forEach((a, i) => {
       a.group.visible = !inShop && state !== 'countries';
       a.group.position.set(tx + (i ? 1.25 : -1.25), 0, 4.6); a.group.rotation.y = 0;

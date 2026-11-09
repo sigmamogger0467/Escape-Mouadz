@@ -46,6 +46,8 @@ function refreshMenu(){
   $('musicBtn').classList.toggle('off', !save.settings.music);
   $('mMult').textContent = 'x' + scoreMultiplier();
   $('dailyDot').hidden = !dailyAvailable();
+  const CH = chaserById(save.chaser);
+  $('subtitle').textContent = `Lauf vor ${CH.short || 'Trump'} und ${(CREWS[CH.crew] || CREWS.ice).the} weg!`;
   const C = countryById(save.country);
   $('cFlag').textContent = C.flag; $('cName').textContent = C.name; $('cWorlds').textContent = C.worlds.map(w => w.emoji).join(' ');
   updateBadges();
@@ -129,7 +131,7 @@ function renderShop(){
     cards.appendChild(b);
   }
   const s = S.list.find(x => x.id === preview), owned = S.owned().includes(s.id), act = $('shopAction');
-  $('sName').textContent = s.name; $('sDesc').textContent = s.desc;
+  $('sName').textContent = s.name; $('sDesc').textContent = s.desc + (shopTab === 'chaser' ? ` Mit dabei: ${(CREWS[s.crew] || CREWS.ice).name}.` : '');
   $('sCoins').textContent = fmt(save.coins);
   if (s.id === S.sel()){ act.textContent = 'AUSGEWÄHLT ✓'; act.disabled = true; }
   else if (owned){ act.textContent = 'AUSWÄHLEN'; act.disabled = false; }

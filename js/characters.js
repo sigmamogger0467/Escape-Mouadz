@@ -59,7 +59,7 @@ function buildRunner(s){
   if (s.extra === 'mummy'){ faceOpts.pupil = 0xff4a2a; faceOpts.mouth = false; }
   if (s.extra === 'ninja') faceOpts.mouth = false;
   if (s.extra !== 'alien' && s.extra !== 'knight') addFace(head, faceOpts);
-  const hairStd = !['robot', 'alien', 'astro', 'knight', 'mummy', 'dino', 'ninja', 'viking', 'vini', 'sahara', 'cr7', 'khaby'].includes(s.extra);
+  const hairStd = !['robot', 'alien', 'astro', 'knight', 'mummy', 'dino', 'ninja', 'viking', 'vini', 'sahara', 'cr7', 'khaby', 'royal', 'guard'].includes(s.extra);
   if (hairStd){
     rbox(.53, .16, .5, mHair, 0, .5, .01, head, .07);
     rbox(.52, .3, .12, mHair, 0, .36, .19, head, .05);
@@ -270,6 +270,80 @@ function buildRunner(s){
     rbox(.28, .32, .03, std(0xd8b04a), 0, 1.2, -.185, body, .03);
     for (const a of arms) torus(.11, .03, robe, 0, -.42, 0, a).rotation.x = Math.PI/2;
   }
+  // ---- crew looks (helpers that run next to the chaser)
+  switch (s.extra){
+    case 'linesman': {
+      const f = new THREE.Group(); f.position.set(0, -.6, -.05); arms[1].add(f);
+      cyl(.018, .018, .75, std(0x2a2a30), 0, -.1, 0, f, 6);
+      rbox(.03, .26, .34, std(0xe8323c), 0, .14, -.17, f, .01); rbox(.032, .13, .17, std(0xffd23a), 0, .2, -.255, f, .005); rbox(.032, .13, .17, std(0xffd23a), 0, .07, -.085, f, .005);
+      for (const l of legs) caps(.12, .14, std(0x15151a), 0, -.55, 0, l);
+      break;
+    }
+    case 'agent':
+      rbox(.42, .08, .035, std(0x050505, .15), 0, .3, -.235, head, .02);
+      rbox(.14, .3, .02, std(0xffffff), 0, 1.38, -.185, body, .01); rbox(.05, .26, .02, std(0x111111), 0, 1.32, -.195, body, .01);
+      cyl(.016, .016, .12, std(0x15151a), -.26, .22, .03, head, 6);
+      break;
+    case 'waiter': {
+      rbox(.6, .5, .04, std(0x15151a), 0, 1.18, -.18, body, .03);
+      rbox(.16, .06, .03, std(0x15151a), 0, 1.5, -.2, body, .02); sph(.035, std(0x15151a), 0, 1.5, -.21, body);
+      const tr = new THREE.Group(); tr.position.set(0, -.62, -.12); arms[1].add(tr);
+      cyl(.24, .24, .02, std(0xc8ccd4), 0, 0, 0, tr, 18);
+      cyl(.06, .05, .09, std(0xffffff), -.06, .055, 0, tr, 12); cyl(.04, .04, .01, std(0x5a3a20), -.06, .1, 0, tr, 10);
+      cyl(.06, .05, .09, std(0xffffff), .08, .055, .04, tr, 12);
+      rbox(.06, .3, .16, std(0xffffff), 0, -.3, 0, arms[0], .02);
+      break;
+    }
+    case 'guard': {
+      const fur = std(s.accent);
+      sph(.3, fur, 0, .52, .01, head, 1.05, .62, 1.05);
+      for (const sx of [-1, 1]) rbox(.06, .26, .26, fur, sx*.27, .28, .03, head, .05);
+      rbox(.42, .08, .035, std(0x050505, .15), 0, .3, -.235, head, .02);
+      cyl(.34, .4, .6, std(s.shirt), 0, .6, 0, body, 16);
+      for (let i = 0; i < 3; i++) sph(.03, std(0xd8b04a), 0, 1.4 - i*.15, -.185, body);
+      break;
+    }
+    case 'general': {
+      cyl(.27, .27, .14, std(s.shirt), 0, .6, 0, head, 18); cyl(.32, .32, .03, std(s.shirt), 0, .67, -.02, head, 20);
+      cyl(.275, .275, .05, std(s.accent), 0, .55, 0, head, 18); rbox(.3, .03, .14, std(0x15151a), 0, .52, -.28, head, .01);
+      for (let i = 0; i < 8; i++) rbox(.05, .07, .02, std(pick([0xffd23a, 0xc8102e, 0x2f6bff, 0x3ac850])), -.18 + (i % 4)*.06, 1.4 - Math.floor(i/4)*.1, -.185, body, .01);
+      for (const sx of [-1, 1]) rbox(.16, .04, .2, std(0xffd23a), sx*.36, 1.56, 0, body, .02);
+      break;
+    }
+    case 'clerk': {
+      for (const sx of [-1, 1]) torus(.06, .012, std(0x1a1a20), sx*.1, .3, -.235, head);
+      rbox(.06, .3, .02, std(s.accent), 0, 1.32, -.185, body, .01);
+      const bc = rbox(.4, .3, .1, std(0x6a4020), 0, -.75, -.02, arms[1], .03); bc.userData.keep = true;
+      rbox(.12, .04, .04, std(0x2a1a10), 0, -.58, -.02, arms[1], .015);
+      break;
+    }
+    case 'elf': {
+      const h = cone(.26, .5, std(s.shirt), 0, .76, .04, head, 14); h.rotation.x = .35;
+      sph(.06, std(0xffd23a), 0, .98, .16, head);
+      torus(.25, .04, std(0xffffff), 0, .52, 0, head).rotation.x = Math.PI/2;
+      for (const sx of [-1, 1]){ const e = cone(.06, .2, std(s.skin), sx*.3, .32, .02, head, 8); e.rotation.z = -sx*1.2; }
+      rbox(.62, .08, .38, std(0x15151a), 0, .97, 0, body, .03); rbox(.12, .1, .03, std(0xffd23a), 0, .97, -.19, body, .02);
+      break;
+    }
+    case 'caddie':
+      sph(.272, std(WHITE), 0, .5, .01, head, 1, .5, 1); rbox(.42, .035, .26, std(WHITE), 0, .48, -.3, head, .015);
+      cyl(.15, .15, .8, std(s.accent), .1, 1.25, .28, body, 14).rotation.z = -.25;
+      for (let i = 0; i < 3; i++) rbox(.08, .08, .14, std(0xc8ccd4, .3, .5), .2 + i*.03, 1.72, .26 + (i - 1)*.06, body, .02);
+      break;
+    case 'cowboyx': {
+      const hat = std(0x8a5a2b);
+      cyl(.42, .42, .04, hat, 0, .55, .01, head, 22); rbox(.36, .2, .34, hat, 0, .66, .01, head, .08);
+      rbox(.64, .5, .38, std(0x6a3a1a), 0, 1.24, 0, body, .1);
+      rbox(.3, .14, .05, std(s.accent), 0, 1.5, -.18, body, .04);
+      break;
+    }
+    case 'royal':
+      cyl(.27, .25, .62, std(0x111111), 0, .76, .02, head, 18); sph(.27, std(0x111111), 0, 1.05, .02, head, 1, .5, 1);
+      rbox(.36, .03, .03, std(0xffd23a), 0, .2, -.23, head, .01);
+      for (let i = 0; i < 4; i++) sph(.03, std(0xffd23a), 0, 1.45 - i*.13, -.185, body);
+      rbox(.64, .08, .38, std(WHITE), 0, .98, 0, body, .03);
+      break;
+  }
   // jetpack (shown while the power-up is active)
   const jet = new THREE.Group(), flames = []; jet.position.set(0, 1.25, .26); body.add(jet); jet.visible = false;
   for (const sx of [-.13, .13]){
@@ -314,6 +388,111 @@ function poseRunner(r, t, mode, dt, o){
 }
 function poseTrump(r, t, mode, dt){ blendPose(r, () => animTrump(r, t, mode), 12, dt || .016); }
 
+/* ---- movement styles: every character runs, waits and cheers in its own way ---- */
+// f: steps per second (rad), stride: leg swing, arm: arm swing, armZ: elbows out, lean: forward lean (negative),
+// bounce: hop height, sway: side rock, twist: hip turn, arms: special arm mode, quant: robotic stepping
+const RUN_DEF = {f:15, stride:1.05, arm:.95, armZ:.14, lean:-.16, bounce:.1, sway:.025, twist:.08, headX:.08, arms:'pump'};
+const RUN_STYLE = {
+  ninja:  {f:17, stride:1.1, lean:-.55, arms:'back', bounce:.05, twist:.04},
+  soccer: {f:19, stride:.78, arm:.6, lean:-.24, bounce:.07},
+  hero:   {f:14, stride:1.15, arm:1.15, lean:-.12, bounce:.13, headX:-.08},
+  astro:  {f:8, stride:.95, arm:.6, lean:-.06, bounce:.38},
+  chef:   {f:13, stride:.7, arm:.45, armZ:.5, sway:.12, bounce:.08},
+  pirate: {f:12, stride:.85, arm:.75, sway:.16, twist:.16, bounce:.13},
+  gamer:  {f:16, stride:.85, arms:'hold', lean:-.34, headX:.35},
+  rapper: {f:13, stride:.95, arm:1.05, armZ:.45, bounce:.1, headBob:.16},
+  robot:  {f:12, stride:.9, arm:.8, quant:4, bounce:.04, sway:0, twist:0},
+  fire:   {f:14, stride:1.1, arm:1.2, bounce:.17},
+  zombie: {f:9, stride:.55, arms:'forward', sway:.12, bounce:.04, headZ:.25},
+  knight: {f:12, stride:.7, arm:.35, bounce:.06, sway:.05},
+  alien:  {f:10, stride:.45, arms:'wave', bounce:.08, float:true},
+  viking: {f:15, stride:1.15, arms:'overhead', lean:-.3, bounce:.12},
+  mummy:  {f:9, stride:.45, arms:'forward', sway:.08, bounce:.03},
+  gold:   {f:13, stride:.75, arm:.5, lean:.04, headX:-.16, bounce:.06},
+  dino:   {f:16, stride:.9, arms:'trex', lean:-.42, bounce:.1, twist:.2},
+  khaby:  {f:12, stride:.85, arm:.6, bounce:.06, lean:-.08},
+  beast:  {f:16, stride:1.05, arm:1.35, armZ:.38, bounce:.15},
+  sahara: {f:13, stride:1.2, arm:.8, bounce:.07, lean:-.1},
+  messi:  {f:20, stride:.68, arm:.5, armZ:.45, lean:-.32, bounce:.05},
+  cr7:    {f:15, stride:1.18, arm:1.12, lean:-.1, bounce:.1, headX:-.05},
+  vini:   {f:16, stride:.95, arm:.8, armZ:.42, sway:.13, twist:.22, bounce:.1},
+  ice:    {f:15, stride:1.0, arm:.9, lean:-.2},
+  linesman: {f:15, arms:'flag'}, agent: {f:16, arms:'ear', lean:-.2}, waiter: {f:17, stride:.6, arms:'tray', bounce:.05},
+  guard:  {f:14, stride:.9, arm:.6, sway:.06}, general: {f:12, stride:1.2, arms:'march', bounce:.05, lean:.02},
+  clerk:  {f:15, stride:.8, arms:'briefcase'}, elf: {f:21, stride:.6, bounce:.16}, caddie: {f:14, arm:.7},
+  cowboyx: {f:13, sway:.2, bow:true, bounce:.14}, royal: {f:12, stride:1.15, arms:'march', bounce:.04}
+};
+const IDLE_STYLE = {cr7:'hips', gold:'hips', knight:'hips', royal:'hips', general:'hips', hero:'hips', khaby:'cross', agent:'cross', guard:'cross', ninja:'cross',
+  vini:'dance', rapper:'dance', beast:'bounce', soccer:'bounce', messi:'bounce', fire:'bounce', robot:'robot', alien:'float', astro:'float', zombie:'sway', mummy:'sway'};
+const CHEER_STYLE = {khaby:'shrug', cr7:'siu', vini:'dance', beast:'flex', fire:'flex', viking:'flex', hero:'flex', gold:'bow', knight:'bow', chef:'bow', royal:'bow',
+  gamer:'dab', rapper:'dab', robot:'robotwave', soccer:'kick', messi:'kick', alien:'spin', astro:'spin', dino:'roar', zombie:'roar', mummy:'roar'};
+function runStyle(id){ return Object.assign({}, RUN_DEF, RUN_STYLE[id] || {}); }
+// shared arm modes for runners and chasers (left arm = index 0 on screen left when seen from behind)
+function armMode(mode, armL, armR, s, t, S){
+  switch (mode){
+    case 'back': armL.rotation.set(-1.35 + s*.06, 0, -.25); armR.rotation.set(-1.35 - s*.06, 0, .25); break;
+    case 'forward': armL.rotation.set(1.45 + s*.12, 0, 0); armR.rotation.set(1.45 - s*.12, 0, 0); break;
+    case 'hold': armL.rotation.set(1.0 + s*.05, 0, .28); armR.rotation.set(1.0 - s*.05, 0, -.28); break;
+    case 'wave': armL.rotation.set(s*.3, 0, -1.2 - s*.35); armR.rotation.set(-s*.3, 0, 1.2 + s*.35); break;
+    case 'overhead': armL.rotation.set(2.7 + s*.35, 0, -.2); armR.rotation.set(2.7 - s*.35, 0, .2); break;
+    case 'trex': armL.rotation.set(.95 + s*.12, 0, .35); armR.rotation.set(.95 - s*.12, 0, -.35); break;
+    case 'flag': armL.rotation.set(-s*S.arm, 0, -.15); armR.rotation.set(2.8, 0, .2 + Math.sin(t*10)*.4); break;
+    case 'ear': armL.rotation.set(2.45, 0, .85); armR.rotation.set(s*S.arm, 0, .14); break;
+    case 'tray': armL.rotation.set(-s*.5, 0, -.2); armR.rotation.set(1.42, 0, -.12); break;
+    case 'march': armL.rotation.set(-s*1.25, 0, -.08); armR.rotation.set(s*1.25, 0, .08); break;
+    case 'briefcase': armL.rotation.set(-s*S.arm, 0, -.14); armR.rotation.set(s*.12, 0, .1); break;
+    case 'card': armL.rotation.set(-s*S.arm, 0, -.3); armR.rotation.set(2.9, 0, .15 + Math.sin(t*6)*.08); break;
+    case 'oneArm': armL.rotation.set(-s*1.25, 0, -.3); armR.rotation.set(.05, 0, .12); break;
+    case 'clap': { const c = Math.max(0, Math.sin(t*12)); armL.rotation.set(1.35, 0, .2 + c*.3); armR.rotation.set(1.35, 0, -.2 - c*.3); break; }
+    case 'fist': armL.rotation.set(-s*S.arm, 0, -.3); armR.rotation.set(2.95, 0, .1); break;
+    case 'club': armL.rotation.set(-s*S.arm, 0, -.35); armR.rotation.set(.6 + s*.7, 0, .25); break;
+    case 'lasso': armL.rotation.set(-s*S.arm, 0, -.35); armR.rotation.set(2.9, t*10, .3); break;
+    case 'scepter': armL.rotation.set(-s*.4, 0, -.3); armR.rotation.set(2.1, 0, .2); break;
+    case 'tantrum': armL.rotation.set(2.6 + Math.sin(t*22)*.5, 0, -.5); armR.rotation.set(2.6 - Math.sin(t*22)*.5, 0, .5); break;
+    case 'flail': { const s2 = Math.sin(t*S.f - .5); armL.rotation.set(-s2*1.15 + .2, 0, -.45 - Math.abs(s2)*.2); armR.rotation.set(s2*1.15 + .2, 0, .45 + Math.abs(s2)*.2); break; }
+    case 'waveHi': armL.rotation.set(-s*1.0 + .2, 0, -.4); armR.rotation.set(2.9, 0, .35 + Math.sin(t*9)*.35); break;
+    default: armL.rotation.set(-s*S.arm, 0, -S.armZ - Math.max(0, s)*.12); armR.rotation.set(s*S.arm, 0, S.armZ + Math.max(0, -s)*.12);
+  }
+}
+function idlePose(r, t, kind, armBase){
+  const {legL, legR, armL, armR, body, head, cape} = r, s = Math.sin(t*2.2);
+  switch (kind){
+    case 'hips': armL.rotation.set(-.35, 0, -.8); armR.rotation.set(-.35, 0, .8); body.position.y = s*.012; head.rotation.y = Math.sin(t*.6)*.2; head.rotation.x = -.08; break;
+    case 'cross': armL.rotation.set(1.35, 0, .78); armR.rotation.set(1.22, 0, -.78); body.position.y = s*.012; head.rotation.z = Math.sin(t*.8)*.06; break;
+    case 'dance': { const d = Math.sin(t*5); body.rotation.y = d*.35; body.rotation.z = d*.08; body.position.y = Math.abs(Math.sin(t*10))*.06; armL.rotation.set(.6 + d*.4, 0, -.5); armR.rotation.set(.6 - d*.4, 0, .5); legL.rotation.x = Math.max(0, d)*.3; legR.rotation.x = Math.max(0, -d)*.3; break; }
+    case 'bounce': body.position.y = Math.abs(Math.sin(t*5))*.08; legL.rotation.x = Math.max(0, Math.sin(t*5))*.15; armL.rotation.set(.3, 0, -.2); armR.rotation.set(.3, 0, .2); break;
+    case 'robot': { const q = Math.round(Math.sin(t*.9)*3)/3; head.rotation.y = q*.5; armL.rotation.set(Math.round(s*2)/2*.3, 0, -.1); armR.rotation.set(-Math.round(s*2)/2*.3, 0, .1); break; }
+    case 'float': body.position.y = .18 + Math.sin(t*1.5)*.1; armL.rotation.set(.2, 0, -.7 - s*.1); armR.rotation.set(.2, 0, .7 + s*.1); legL.rotation.x = .25; legR.rotation.x = -.1; break;
+    case 'sway': body.rotation.z = Math.sin(t*1.3)*.08; armL.rotation.x = armBase + s*.08; armR.rotation.x = armBase - s*.08; head.rotation.z = -Math.sin(t*1.3)*.12; break;
+    default: armL.rotation.set(armBase + s*.05, 0, -.1); armR.rotation.set(armBase - s*.05, 0, .1); body.position.y = s*.015; body.rotation.x = s*.01; head.rotation.y = Math.sin(t*.7)*.25; head.rotation.x = Math.sin(t*.9)*.05;
+  }
+  if (cape) cape.rotation.x = -.12 + s*.05;
+}
+function cheerPose(r, t, kind){
+  const {legL, legR, armL, armR, body, head} = r;
+  switch (kind){
+    case 'shrug': { const s = Math.sin(t*3); armL.rotation.set(.75, -.5, -.42 - s*.05); armR.rotation.set(.75, .5, .42 + s*.05); head.rotation.z = .12 + s*.03; head.rotation.x = -.08; body.position.y = Math.abs(s)*.03; break; }
+    case 'siu': { const k = (t*1.2) % 1, up = Math.sin(Math.min(1, k/.5)*Math.PI); body.position.y = up*.45; body.rotation.y = up*Math.PI*.9; armL.rotation.set(-.3, 0, -1.0*up - .2); armR.rotation.set(-.3, 0, 1.0*up + .2); legL.rotation.x = up*.3; legR.rotation.x = up*.2; break; }
+    case 'dance': { const d = Math.sin(t*7); body.rotation.y = d*.55; body.rotation.z = d*.14; body.position.y = Math.abs(Math.sin(t*14))*.1; armL.rotation.set(2.4 + d*.5, 0, -.4); armR.rotation.set(.8 - d*.5, 0, .7); legL.rotation.x = Math.max(0, d)*.5; legR.rotation.x = Math.max(0, -d)*.5; break; }
+    case 'flex': { const p = Math.abs(Math.sin(t*4)); armL.rotation.set(2.1, 0, -1.25 - p*.15); armR.rotation.set(2.1, 0, 1.25 + p*.15); body.position.y = p*.05; head.rotation.x = -.15; break; }
+    case 'bow': { const b = Math.max(0, Math.sin(t*2)); body.rotation.x = -.75*b; armR.rotation.set(1.3*b, 0, -.5*b); armL.rotation.set(-.4*b, 0, -.2); break; }
+    case 'dab': { const side = Math.sin(t*2) > 0 ? 1 : -1; armR.rotation.set(2.3, 0, side > 0 ? 1.05 : -.2); armL.rotation.set(1.7, 0, side > 0 ? .95 : -1.05); head.rotation.set(-.45, side*.45, 0); break; }
+    case 'robotwave': { const q = Math.round(t*4) % 2; armR.rotation.set(2.9, 0, .2 + q*.5); armL.rotation.set(0, 0, -.1); head.rotation.y = q ? .25 : -.25; break; }
+    case 'kick': { const k = Math.max(0, Math.sin(t*4)); legR.rotation.x = 1.5*k; armL.rotation.set(.6*k, 0, -.6); armR.rotation.set(-.6*k, 0, .6); body.rotation.x = .15*k; break; }
+    case 'spin': body.rotation.y = t*5; body.position.y = .25 + Math.sin(t*3)*.1; armL.rotation.set(0, 0, -1.4); armR.rotation.set(0, 0, 1.4); break;
+    case 'roar': { const sh = Math.sin(t*30)*.03; body.rotation.x = .2; body.position.x = sh; head.rotation.x = .45; armL.rotation.set(1.1, 0, .4); armR.rotation.set(1.1, 0, -.4); break; }
+    default: { const s = Math.sin(t*9); armL.rotation.set(2.7 + s*.25, 0, -.35); armR.rotation.set(2.7 - s*.25, 0, .35); body.position.y = Math.abs(s)*.14; head.rotation.x = -.15; legL.rotation.x = Math.abs(s)*.3; legR.rotation.x = Math.abs(s)*.25; }
+  }
+}
+// chasers: arm mode and gait per character
+const CH_STYLE = {
+  classic:{arms:'flail'}, gold:{arms:'flail'}, bling:{arms:'flail', sway:.1}, icechef:{arms:'pump', arm:1.1}, super:{arms:'fist', lean:-.3},
+  golf:{arms:'club'}, cowboy:{arms:'lasso', bow:true, bounce:.18}, pirate:{arms:'fist', sway:.16, f:11}, santa:{arms:'flail', f:10, bounce:.2, sway:.08},
+  ninja:{arms:'back', lean:-.5, f:15}, astro:{arms:'pump', arm:.6, f:8, bounce:.4}, robot:{arms:'pump', arm:.8, quant:4}, zombie:{arms:'forward', f:9, stride:.5},
+  king:{arms:'scepter', f:9, stride:.55, bounce:.05}, baby:{arms:'tantrum', f:20, stride:.5}, ref:{arms:'card'}, interpol:{arms:'ear', lean:-.25},
+  bibi:{arms:'waveHi'}, putin:{arms:'oneArm', f:12, sway:.07}, kim:{arms:'clap', f:17, stride:.55}, musk:{arms:'overhead', bounce:.25, f:12}, merz:{arms:'pump', arm:.3, f:10, stride:1.15, bounce:.05}
+};
+
 function animRunner(r, t, mode, o){
   o = o || {};
   const {legL, legR, armL, armR, body, cape, head} = r;
@@ -323,13 +502,17 @@ function animRunner(r, t, mode, o){
   const sq = o.squash || 0;
   body.scale.set(1 + sq*.12, 1 - sq*.16, 1 + sq*.12);
   if (mode === 'run'){
-    const ph = t*15, s = Math.sin(ph), c = Math.cos(ph);
-    legL.rotation.x = s*1.05; legR.rotation.x = -s*1.05;
-    armL.rotation.x = armBase - s*(r.zombie ? .15 : .95); armR.rotation.x = armBase + s*(r.zombie ? .15 : .95);
-    armL.rotation.z = -.14 - Math.max(0, s)*.12; armR.rotation.z = .14 + Math.max(0, -s)*.12;
-    body.position.y = Math.abs(c)*.1 - .02; body.rotation.x = -.16; body.rotation.y = s*.08;
-    body.rotation.z = (o.lean || 0) + s*.025;
-    head.rotation.x = .08 - Math.abs(c)*.04; head.rotation.y = -s*.06; head.rotation.z = -(o.lean || 0)*.5;
+    const S = runStyle(r.special);
+    let ph = t*S.f;
+    if (S.quant) ph = Math.round(ph/(Math.PI/S.quant))*(Math.PI/S.quant);
+    const s = Math.sin(ph), c = Math.cos(ph);
+    legL.rotation.x = s*S.stride; legR.rotation.x = -s*S.stride;
+    if (S.bow){ legL.rotation.z = -.22; legR.rotation.z = .22; }
+    armMode(S.arms, armL, armR, s, t, S);
+    body.position.y = Math.abs(c)*S.bounce - .02 + (S.float ? .18 + Math.sin(t*3)*.12 : 0);
+    body.rotation.x = S.lean; body.rotation.y = s*S.twist;
+    body.rotation.z = (o.lean || 0) + s*S.sway;
+    head.rotation.x = S.headX + (S.headBob ? Math.abs(s)*S.headBob : -Math.abs(c)*.04); head.rotation.y = -s*.06; head.rotation.z = -(o.lean || 0)*.5 + (S.headZ || 0);
     if (cape) cape.rotation.x = -.85 + Math.sin(t*22)*.14;
   } else if (mode === 'jump'){
     const vy = o.vy || 0, apex = 1 - Math.min(1, Math.abs(vy)/11);
@@ -378,27 +561,10 @@ function animRunner(r, t, mode, o){
   } else if (mode === 'grab'){
     armL.rotation.x = 1.3 + Math.sin(t*3)*.05; armR.rotation.x = .2;
     head.rotation.y = Math.sin(t*1.3)*.2;
-  } else if (mode === 'cheer' && r.special === 'khaby'){
-    // the famous shrug: palms up, eyebrows of disbelief
-    const s = Math.sin(t*3);
-    armL.rotation.set(.75, -.5, -.42 - s*.05); armR.rotation.set(.75, .5, .42 + s*.05);
-    head.rotation.z = .12 + s*.03; head.rotation.x = -.08; body.position.y = Math.abs(s)*.03;
-  } else if (mode === 'cheer' && r.special === 'cr7'){
-    const k = (t*1.2) % 1, up = Math.sin(Math.min(1, k/.5)*Math.PI);
-    body.position.y = up*.45; body.rotation.y = up*Math.PI*.9;
-    armL.rotation.set(-.3, 0, -1.0*up - .2); armR.rotation.set(-.3, 0, 1.0*up + .2);
-    legL.rotation.x = up*.3; legR.rotation.x = up*.2;
   } else if (mode === 'cheer'){
-    const s = Math.sin(t*9);
-    armL.rotation.set(2.7 + s*.25, 0, -.35); armR.rotation.set(2.7 - s*.25, 0, .35);
-    body.position.y = Math.abs(s)*.14; head.rotation.x = -.15;
-    legL.rotation.x = Math.abs(s)*.3; legR.rotation.x = Math.abs(s)*.25;
+    cheerPose(r, t, CHEER_STYLE[r.special] || 'jump');
   } else {
-    const s = Math.sin(t*2.2);
-    armL.rotation.x = armBase + s*.05; armR.rotation.x = armBase - s*.05;
-    armL.rotation.z = -.1; armR.rotation.z = .1;
-    body.position.y = s*.015; body.rotation.x = s*.01; head.rotation.y = Math.sin(t*.7)*.25; head.rotation.x = Math.sin(t*.9)*.05;
-    if (cape) cape.rotation.x = -.12 + s*.05;
+    idlePose(r, t, IDLE_STYLE[r.special] || 'breathe', armBase);
   }
 }
 
@@ -628,23 +794,21 @@ function buildTrump(c){
   if (c.glasses){ for (const sx of [-1, 1]) torus(.075, .014, std(0x1a1a20), sx*.13, .47, -.27, head); rbox(.08, .02, .02, std(0x1a1a20), 0, .48, -.27, head, .01); }
   castAll(g); mergeTree(g);
   g.scale.setScalar(.9);
-  return {group:g, body, legL:legs[0], legR:legs[1], armL:arms[0], armR:arms[1], head, cape, zombie: c.extra === 'zombie', wave: c.extra === 'friendly'};
+  return {group:g, body, legL:legs[0], legR:legs[1], armL:arms[0], armR:arms[1], head, cape, style: c.id, zombie: c.extra === 'zombie', wave: c.extra === 'friendly'};
 }
 function animTrump(r, t, mode){
   const {legL, legR, armL, armR, body, head, cape} = r;
   body.rotation.set(0, 0, 0); body.position.set(0, 0, 0); head.rotation.set(0, 0, 0);
   armL.rotation.set(0, 0, 0); armR.rotation.set(0, 0, 0); legL.rotation.set(0, 0, 0); legR.rotation.set(0, 0, 0);
   if (mode === 'run'){
-    const ph = t*13, s = Math.sin(ph);
-    legL.rotation.x = s*.9; legR.rotation.x = -s*.9;
-    if (r.zombie){ armL.rotation.x = 1.45 + s*.1; armR.rotation.x = 1.45 - s*.1; }
-    else if (r.wave){ armL.rotation.set(-s*1.0 + .2, 0, -.4); armR.rotation.set(2.9, 0, .35 + Math.sin(t*9)*.35); }
-    else {
-      // big flailing arms, half a beat late, for the comedic chase
-      const s2 = Math.sin(ph - .5);
-      armL.rotation.set(-s2*1.15 + .2, 0, -.45 - Math.abs(s2)*.2); armR.rotation.set(s2*1.15 + .2, 0, .45 + Math.abs(s2)*.2);
-    }
-    body.position.y = Math.abs(Math.cos(ph))*.12; body.rotation.x = -.18; body.rotation.y = s*.07; body.rotation.z = s*.04;
+    const S = Object.assign({f:13, stride:.9, arm:1.0, armZ:.3, lean:-.18, bounce:.12, sway:.04, arms:'flail'}, CH_STYLE[r.style] || {});
+    let ph = t*S.f;
+    if (S.quant) ph = Math.round(ph/(Math.PI/S.quant))*(Math.PI/S.quant);
+    const s = Math.sin(ph);
+    legL.rotation.x = s*S.stride; legR.rotation.x = -s*S.stride;
+    if (S.bow){ legL.rotation.z = -.28; legR.rotation.z = .28; }
+    armMode(S.arms, armL, armR, s, t, S);
+    body.position.y = Math.abs(Math.cos(ph))*S.bounce; body.rotation.x = S.lean; body.rotation.y = s*.07; body.rotation.z = s*S.sway;
     head.rotation.z = Math.sin(t*6.5)*.08; head.rotation.x = .05;
     if (cape) cape.rotation.x = -.75 + Math.sin(t*20)*.12;
   } else if (mode === 'angry'){
@@ -665,7 +829,14 @@ function animTrump(r, t, mode){
 
 let runner = buildRunner(skinById(save.skin)); scene.add(runner.group);
 let trump = buildTrump(chaserById(save.chaser)); scene.add(trump.group);
-const agents = [buildRunner(AGENT), buildRunner(AGENT)];
-for (const a of agents){ a.group.scale.setScalar(1.06); scene.add(a.group); }
+const agents = [];
+function setCrew(chaserId){
+  const def = crewDef(chaserById(chaserId).crew);
+  for (let i = 0; i < 2; i++){
+    if (agents[i]){ scene.remove(agents[i].group); disposeMerged(agents[i].group); }
+    agents[i] = buildRunner(def); agents[i].group.scale.setScalar(1.06); scene.add(agents[i].group);
+  }
+}
+setCrew(save.chaser);
 function setRunnerSkin(id){ scene.remove(runner.group); disposeMerged(runner.group); runner = buildRunner(skinById(id)); scene.add(runner.group); }
-function setChaserSkin(id){ scene.remove(trump.group); disposeMerged(trump.group); trump = buildTrump(chaserById(id)); scene.add(trump.group); }
+function setChaserSkin(id){ scene.remove(trump.group); disposeMerged(trump.group); trump = buildTrump(chaserById(id)); scene.add(trump.group); setCrew(id); }

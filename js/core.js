@@ -165,7 +165,7 @@ function checkMissionToasts(){
 const readyCount = () => MISSIONS.filter(m => missionState(m).ready).length;
 
 /* ================= Audio ================= */
-let actx = null;
+let actx = null, coinCombo = 0, lastCoinAt = 0;
 function sfx(type){
   if (save.muted) return;
   try{
@@ -175,7 +175,21 @@ function sfx(type){
     o.connect(g); g.connect(actx.destination);
     const env = (v, len) => { g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0008, t + len); o.start(t); o.stop(t + len + 0.02); };
     switch(type){
-      case 'coin':  o.type='square'; o.frequency.setValueAtTime(988,t); o.frequency.setValueAtTime(1319,t+.05); env(.045,.16); break;
+      case 'coin': {
+        // bright two-tone 'bling'; quick pickups climb a major scale
+        const now = performance.now();
+        coinCombo = now - lastCoinAt < 450 ? Math.min(coinCombo + 1, 14) : 0; lastCoinAt = now;
+        const step = [0, 2, 4, 5, 7, 9, 11][coinCombo % 7] + 12*Math.floor(coinCombo/7);
+        const base = 1568*Math.pow(2, step/12);
+        o.type = 'sine'; o.frequency.setValueAtTime(base, t); env(.07, .32);
+        for (const [mul, v, d, len] of [[1.5, .055, .045, .38], [2.01, .03, .0, .22], [3.0, .018, .045, .16]]){
+          const o2 = actx.createOscillator(), g2 = actx.createGain();
+          o2.type = mul === 2.01 ? 'triangle' : 'sine'; o2.frequency.value = base*mul;
+          g2.gain.setValueAtTime(.0001, t + d); g2.gain.linearRampToValueAtTime(v, t + d + .004); g2.gain.exponentialRampToValueAtTime(.0005, t + d + len);
+          o2.connect(g2); g2.connect(actx.destination); o2.start(t + d); o2.stop(t + d + len + .05);
+        }
+        break;
+      }
       case 'jump':  o.type='sine'; o.frequency.setValueAtTime(280,t); o.frequency.exponentialRampToValueAtTime(720,t+.14); env(.12,.18); break;
       case 'slide': o.type='triangle'; o.frequency.setValueAtTime(420,t); o.frequency.exponentialRampToValueAtTime(140,t+.2); env(.12,.22); break;
       case 'hit':   o.type='sawtooth'; o.frequency.setValueAtTime(220,t); o.frequency.exponentialRampToValueAtTime(55,t+.3); env(.16,.32); break;
@@ -191,43 +205,81 @@ function sfx(type){
 }
 
 
-/* ================= Music: a small procedural loop that follows the current world ================= */
-const music = {on:false, timer:0, step:0, next:0, gain:null, root:45};
-const MUSIC_ROOTS = [45, 41, 43, 48, 47, 44]; // one key per world
-function musicNote(freq, t, len, type, vol){
-  const o = actx.createOscillator(), g = actx.createGain();
-  o.type = type; o.frequency.setValueAtTime(freq, t);
-  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + .01); g.gain.exponentialRampToValueAtTime(.0005, t + len);
-  o.connect(g); g.connect(music.gain); o.start(t); o.stop(t + len + .05);
-}
-function musicNoise(t, len, vol, hp){
-  const n = actx.sampleRate*len|0, buf = actx.createBuffer(1, n, actx.sampleRate), d = buf.getChannelData(0);
-  for (let i = 0; i < n; i++) d[i] = (Math.random()*2 - 1)*(1 - i/n);
-  const src = actx.createBufferSource(), f = actx.createBiquadFilter(), g = actx.createGain();
-  src.buffer = buf; f.type = 'highpass'; f.frequency.value = hp; g.gain.value = vol;
-  src.connect(f); f.connect(g); g.connect(music.gain); src.start(t);
-}
+/* ================= Music: a Romanian folk dance (sârbă) in 2/4, played by violin, cimbalom, accordion, bass and drum ================= */
+const music = {on:false, timer:0, step:0, next:0, gain:null, root:45, bus:null};
+const MUSIC_ROOTS = [45, 47, 43, 48, 42, 44]; // one key per world
 const midi = n => 440*Math.pow(2, (n - 69)/12);
-const BASS = [0, 0, 12, 0, 3, 3, 15, 3, 5, 5, 17, 5, 7, 7, 10, 12];
-const LEAD = [12, null, 15, null, 19, null, 15, 17, null, 19, 22, null, 19, null, 17, 15];
+function musicOut(){ return music.bus || music.gain; }
+function envGain(t, a, peak, hold, rel){
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + a);
+  if (hold > 0) g.gain.setValueAtTime(peak*.8, t + a + hold);
+  g.gain.exponentialRampToValueAtTime(.0001, t + a + Math.max(0, hold) + rel);
+  return g;
+}
+function violin(freq, t, len, vol){
+  const o = actx.createOscillator(), f = actx.createBiquadFilter(), lfo = actx.createOscillator(), lg = actx.createGain();
+  o.type = 'sawtooth'; o.frequency.setValueAtTime(freq*.985, t); o.frequency.linearRampToValueAtTime(freq, t + .04); // little slide into the note
+  lfo.frequency.value = 5.8; lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(freq*.007, t + Math.min(.15, len)); lfo.connect(lg); lg.connect(o.frequency);
+  f.type = 'lowpass'; f.frequency.value = 2600; f.Q.value = 1.2;
+  const g = envGain(t, .025, vol, Math.max(0, len - .08), .09);
+  o.connect(f); f.connect(g); g.connect(musicOut());
+  o.start(t); lfo.start(t); o.stop(t + len + .15); lfo.stop(t + len + .15);
+}
+function cimbalom(freq, t, vol){
+  for (const [mul, type, v] of [[1, 'triangle', 1], [2.003, 'sine', .45], [1.004, 'triangle', .5]]){
+    const o = actx.createOscillator(), g = envGain(t, .003, vol*v, 0, .32);
+    o.type = type; o.frequency.value = freq*mul; o.connect(g); g.connect(musicOut()); o.start(t); o.stop(t + .4);
+  }
+}
+function accordion(notes, t, len, vol){
+  const f = actx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1700;
+  const g = envGain(t, .01, vol, len*.6, .06); f.connect(g); g.connect(musicOut());
+  for (const n of notes) for (const det of [-4, 4]){
+    const o = actx.createOscillator(); o.type = 'square'; o.frequency.value = midi(n); o.detune.value = det;
+    o.connect(f); o.start(t); o.stop(t + len + .1);
+  }
+}
+function bassNote(n, t, vol){ const o = actx.createOscillator(), g = envGain(t, .005, vol, .06, .12); o.type = 'triangle'; o.frequency.value = midi(n); o.connect(g); g.connect(musicOut()); o.start(t); o.stop(t + .25); }
+function drum(t, kick){
+  if (kick){ const o = actx.createOscillator(), g = envGain(t, .002, .55, 0, .14); o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(48, t + .12); o.connect(g); g.connect(musicOut()); o.start(t); o.stop(t + .18); return; }
+  const n = actx.sampleRate*.05|0, buf = actx.createBuffer(1, n, actx.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random()*2 - 1)*(1 - i/n);
+  const s = actx.createBufferSource(), hp = actx.createBiquadFilter(), g = actx.createGain();
+  s.buffer = buf; hp.type = 'highpass'; hp.frequency.value = 2500; g.gain.value = .22; s.connect(hp); hp.connect(g); g.connect(musicOut()); s.start(t);
+}
+// melody in Romanian minor (degrees 0 2 3 6 7 9 10 12 ...), '-' holds the previous note, null is a rest; 8 sixteenths per bar
+const _ = '-';
+const SARBA = [
+  7,9,10,12, 10,9,7,6,    7,_,3,2, 3,6,7,_,      7,9,10,12, 14,12,10,9,   7,_,6,7, 3,_,0,_,
+  12,_,12,14, 15,14,12,10, 12,10,9,7, 9,10,9,7,  6,7,9,6, 7,6,3,2,        0,_,_,null, 7,6,7,9,
+  12,14,15,14, 12,14,15,18, 19,_,18,15, 14,15,14,12, 12,14,15,14, 12,10,9,10, 12,_,10,9, 7,_,null,null,
+  19,18,19,18, 15,14,15,14, 12,10,12,10, 9,7,9,10,  12,15,14,12, 10,9,7,6,   7,_,6,3, 0,_,null,null
+];
+const AM = [0, 3, 7], EM = [7, 11, 14], DM = [5, 8, 12];
+const CHORDS = [AM, EM, AM, EM, AM, DM, EM, AM,  AM, EM, DM, AM, AM, DM, EM, AM];
 function musicTick(){
   if (!music.on || !actx) return;
-  const spb = 60/(118 + Math.min(30, (typeof G !== 'undefined' && G.speed ? G.speed : 14) - 14)); // speeds up with the run
-  const s16 = spb/4;
-  while (music.next < actx.currentTime + .2){
-    const t = music.next, st = music.step % 16, bar = Math.floor(music.step/16) % 4;
-    const shift = [0, 0, -2, 3][bar];
-    if (st % 4 === 0) { musicNote(150, t, .18, 'sine', .5); musicNote(55, t, .2, 'sine', .4); }
-    if (st % 4 === 2) musicNoise(t, .05, .25, 7000);
-    if (st === 4 || st === 12) musicNoise(t, .14, .35, 1800);
-    musicNote(midi(music.root + BASS[st] + shift), t, s16*.9, 'square', .06);
-    const l = LEAD[st];
-    if (l !== null && bar % 2 === 1) musicNote(midi(music.root + 12 + l + shift), t, s16*1.6, 'triangle', .05);
+  const sp = typeof G !== 'undefined' && G.speed ? G.speed : 14;
+  const s16 = 60/(146 + Math.min(36, (sp - 14)*1.6))/4;
+  while (music.next < actx.currentTime + .25){
+    const t = music.next, i = music.step % SARBA.length, st = i % 8, bar = Math.floor(i/8);
+    const R = music.root, chord = CHORDS[bar];
+    const m = SARBA[i];
+    if (typeof m === 'number'){
+      let hold = 1; while (SARBA[(i + hold) % SARBA.length] === _) hold++;
+      violin(midi(R + 24 + m), t, s16*hold*.95, .075);
+    }
+    cimbalom(midi(R + 24 + chord[[0, 1, 2, 1][st % 4]] + (st >= 4 ? 12 : 0)), t, .045);
+    if (st === 0 || st === 4) bassNote(R + chord[0] + (st === 4 ? 7 : 0) - 12, t, .3);
+    if (st === 2 || st === 6) accordion(chord.map(n => R + 12 + n), t, s16*1.4, .05);
+    if (st === 0 || st === 4) drum(t, true);
+    if (st === 2 || st === 6) drum(t, false);
     music.next += s16; music.step++;
   }
 }
 function setMusic(on, worldI){
-  if (worldI !== undefined) music.root = MUSIC_ROOTS[worldI] || 45;
+  if (worldI !== undefined) music.root = MUSIC_ROOTS[worldI % MUSIC_ROOTS.length] || 45;
   const want = on && save.settings.music && !save.muted;
   if (want === music.on) return;
   music.on = want;
@@ -235,9 +287,15 @@ function setMusic(on, worldI){
     try{
       if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
       if (actx.state === 'suspended') actx.resume();
-      if (!music.gain){ music.gain = actx.createGain(); music.gain.connect(actx.destination); }
+      if (!music.gain){
+        music.gain = actx.createGain(); music.gain.connect(actx.destination);
+        // a short room echo makes the little band sound less dry
+        const dl = actx.createDelay(), fb = actx.createGain(), wet = actx.createGain();
+        dl.delayTime.value = .19; fb.gain.value = .25; wet.gain.value = .22;
+        music.bus = actx.createGain(); music.bus.connect(music.gain); music.bus.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(wet); wet.connect(music.gain);
+      }
       music.gain.gain.cancelScheduledValues(actx.currentTime);
-      music.gain.gain.setValueAtTime(.0001, actx.currentTime); music.gain.gain.exponentialRampToValueAtTime(.35, actx.currentTime + .6);
+      music.gain.gain.setValueAtTime(.0001, actx.currentTime); music.gain.gain.exponentialRampToValueAtTime(.42, actx.currentTime + .6);
       music.next = actx.currentTime + .05; music.step = 0;
       clearInterval(music.timer); music.timer = setInterval(musicTick, 60);
     }catch(e){ music.on = false; }
@@ -247,4 +305,5 @@ function setMusic(on, worldI){
     music.gain.gain.exponentialRampToValueAtTime(.0001, actx.currentTime + .4);
     setTimeout(() => { if (!music.on) clearInterval(music.timer); }, 450);
   }
+
 }
