@@ -279,7 +279,8 @@ function makeCoin(lane, z, y){
   return addObj({kind:'coin', mesh:m});
 }
 const POWER_INFO = {
-  magnet: {label:'🧲 Magnet'}, shield: {label:'🛡️ Schild'}, double: {label:'💰 x2 Münzen'}, turbo: {label:'🚀 Turbo'}, jet: {label:'🎒 Jetpack'}
+  magnet: {label:'🧲 Magnet'}, shield: {label:'🛡️ Schild'}, double: {label:'💰 x2 Münzen'}, turbo: {label:'🚀 Turbo'}, jet: {label:'🎒 Jetpack'},
+  boots: {label:'👟 Sprungschuhe'}, slowmo: {label:'⏳ Zeitlupe'}
 };
 const headlightMat = new THREE.SpriteMaterial({map: glowTex, color: 0xfff0a0, transparent:true, opacity:.9, blending: THREE.AdditiveBlending, depthWrite:false});
 function makePower(type, lane, z){
@@ -292,6 +293,17 @@ function makePower(type, lane, z){
     sph(.12, glowMat(0xdff2ff), 0, 0, 0, inner);
   } else if (type === 'double'){
     rbox(.55, .55, .55, toon({map:x2Tex, emissive:0x3a2000}), 0, 0, 0, inner, .1);
+  } else if (type === 'boots'){
+    rbox(.42, .2, .26, glossy(0x3ac8ff), 0, -.05, 0, inner, .09);
+    rbox(.26, .2, .24, glossy(0x3ac8ff), -.08, .12, 0, inner, .08);
+    rbox(.44, .06, .28, glossy(0xffffff), 0, -.16, 0, inner, .03);
+    for (const sx of [-1, 1]){ const w = rbox(.05, .22, .3, glossy(0xffffff), -.02, .2, sx*.18, inner, .03); w.rotation.x = sx*.6; }
+  } else if (type === 'slowmo'){
+    const glass = glossy(0x9adcff), sand = glossy(0xffd23a), wood = glossy(0x8a5a2a);
+    cone(.2, .26, glass, 0, .14, 0, inner, 14).rotation.x = Math.PI; cone(.2, .26, glass, 0, -.14, 0, inner, 14);
+    cone(.12, .12, sand, 0, -.21, 0, inner, 12);
+    for (const y of [-.29, .29]) cyl(.25, .25, .05, wood, 0, y, 0, inner, 16);
+    for (let i = 0; i < 3; i++) cyl(.02, .02, .56, wood, Math.cos(i*2.09)*.22, 0, Math.sin(i*2.09)*.22, inner, 6);
   } else if (type === 'jet'){
     for (const sx of [-.13, .13]){ cyl(.1, .1, .46, glossy(0xc8ccd4), sx, 0, 0, inner, 14); cone(.1, .14, glossy(0xe8323c), sx, .3, 0, inner, 14); cone(.07, .2, glowMat(0xffa030), sx, -.33, 0, inner, 10).rotation.x = Math.PI; }
     rbox(.34, .28, .08, std(0x4a4f5a), 0, 0, .1, inner, .03);
@@ -302,7 +314,7 @@ function makePower(type, lane, z){
     cone(.09, .22, glowMat(0xff9a2a), 0, -.38, 0, inner, 10).rotation.x = Math.PI;
     inner.rotation.z = -.5;
   }
-  const colors = {magnet:0xff7a7a, shield:0x9fd4ff, double:0xffd36a, turbo:0xffa040, jet:0x9affc8};
+  const colors = {magnet:0xff7a7a, shield:0x9fd4ff, double:0xffd36a, turbo:0xffa040, jet:0x9affc8, boots:0x7df9ff, slowmo:0xa8c8ff};
   torus(.5, .03, glowMat(colors[type]), 0, -.55, 0, g).rotation.x = Math.PI/2;
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({map: glowTex, color: colors[type], transparent:true, opacity:.55, blending: THREE.AdditiveBlending, depthWrite:false}));
   glow.scale.set(1.8, 1.8, 1); g.add(glow);

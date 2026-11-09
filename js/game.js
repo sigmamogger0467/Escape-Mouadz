@@ -86,7 +86,7 @@ function resetGame(){
   Object.assign(G, {
     t:0, speed:12, dist:0, coins:0, lane:1, prevLane:1, x:0, y:0, vy:0, grounded:true, gy:0, slide:0, queueSlide:false,
     stumbleT:0, closeT:2.2, closeFromStumble:false, invuln:0, chaseDist:4.0, chaseX:0, chaseY:0,
-    magnet:0, shield:0, double:0, turbo:0, jet:0, score:0, mult: scoreMultiplier(), lastD:0, smashT:0,
+    magnet:0, shield:0, double:0, turbo:0, jet:0, boots:0, slowmo:0, clock:0, score:0, mult: scoreMultiplier(), lastD:0, smashT:0,
     stage:0, jumpT:0, trick:false, squashT:0, worldsSeen:1,
     spawnZ:-45, lineT:1.2, shake:0, caughtT:0, caughtReason:'', lastWallLine:0, lastIceLine:0, pendingLine:null, missionT:0,
     junction:null, turning:null, turnQueued:0, nextJunction: 300 + Math.random()*150, mPlan:null, roofAcc:0
@@ -147,7 +147,7 @@ function spawnRow(){
   if (Math.random() < .08 && G.dist > 120){
     const free = [0, 1, 2].filter(l => !placed[l] && l !== reserved);
     const lane = free.length ? pick(free) : lanes[0];
-    makePower(pick(['magnet', 'shield', 'double', 'turbo', 'jet', 'magnet', 'double']), lane, z - gap*.5);
+    makePower(pick(['magnet', 'shield', 'double', 'turbo', 'jet', 'boots', 'slowmo', 'magnet', 'double']), lane, z - gap*.5);
   }
   if (placed.includes('wall') && G.t - G.lastWallLine > 9 && Math.random() < .5){ G.lastWallLine = G.t; G.pendingLine = "Ich baue eine Mauer! Eine wunderschöne Mauer!"; }
   else if (placed.includes('ice') && G.t - G.lastIceLine > 9 && Math.random() < .5){ G.lastIceLine = G.t; G.pendingLine = "ICE! Schnappt ihn euch!"; sfx('siren'); }
@@ -171,6 +171,7 @@ function moveLane(dir){
   if (n !== G.lane){ G.prevLane = G.lane; G.lane = n; }
 }
 // score needed for the n-th world of a run: the country's list first, then every further world needs 1.45x more
+const SLOW = .55; // game speed while slow motion is active
 function stageAt(n){
   const last = WORLDS.length - 1;
   if (n <= last) return WORLDS[n].at;
@@ -178,7 +179,7 @@ function stageAt(n){
 }
 function jump(){
   if (state !== 'running') return;
-  if (G.grounded && G.jet <= 0){ G.vy = 11; G.grounded = false; G.slide = 0; G.jumpT = 0; G.trick = Math.random() < .3; sfx('jump'); addStat('jumps', 1); }
+  if (G.grounded && G.jet <= 0){ G.vy = G.boots > 0 ? 15.5 : 11; G.grounded = false; G.slide = 0; G.jumpT = 0; G.trick = Math.random() < .3; sfx('jump'); addStat('jumps', 1); }
 }
 function startSlide(){ G.slide = .75; sfx('slide'); addStat('slides', 1); }
 function slide(){
@@ -219,11 +220,12 @@ function stumble(){
   sfx('hit'); G.shake = .35;
   if (G.closeT > 0){ caught('stumble'); return; }
   G.closeT = 6; G.closeFromStumble = true; G.stumbleT = .9; G.invuln = .8;
-  say(STUMBLE_LINES[(Math.random()*STUMBLE_LINES.length)|0], 1.8);
+  say(pick(chaserStumble()), 1.8);
 }
 function knock(o){ o.hit = true; o.knockV = 6; }
 function smashFx(m){ addStat('smashed', 1); emit(m.position.x, 1, Math.min(0, m.position.z), 16, 0xffe0a0, 4, .6, .7, 2); }
 function startJet(){
+  G.jetT = 0;
   G.invuln = Math.max(G.invuln, 1); G.grounded = false; G.vy = 0; sfx('power');
   // a trail of coins in the air for the length of the flight
   let lane = G.lane, z = -10;
@@ -249,7 +251,8 @@ function caught(reason){
   if (state !== 'running') return;
   state = 'caught'; G.caughtT = 0; G.caughtReason = reason; G.slide = 0; G.turnQueued = 0;
   sfx('fired'); G.shake = .5; setMusic(false);
-  say("YOU'RE FIRED!", 3);
+  say((chaserById(save.chaser).stamp || "YOU'RE FIRED!").replace(/<br>/g, ' ').replace('- ', ''), 3);
+  $('firedStamp').innerHTML = chaserById(save.chaser).stamp || "YOU'RE<br>FIRED!";
   const earned = G.coins;
   const res = finishRun() || {score:0, isBest:false};
   const W = WORLDS[worldIdx];
@@ -313,7 +316,7 @@ function update(dt){
     let wi = G.stage;
     if (wi >= WORLDS.length){ do { wi = (Math.random()*WORLDS.length)|0; } while (wi === worldIdx && WORLDS.length > 1); }
     setWorld(wi, false); maxStat('worldMax', G.stage); music.root = MUSIC_ROOTS[wi % MUSIC_ROOTS.length];
-    say(pick(["Auch diese Welt gehört bald mir!", "Ich kaufe diese Stadt!", "Du kannst nicht ewig rennen!"]), 2.4);
+    say(chaserById(save.chaser).lines ? pick(chaserLines()) : pick(["Auch diese Welt gehört bald mir!", "Ich kaufe diese Stadt!", "Du kannst nicht ewig rennen!"]), 2.4);
   }
 
   G.stumbleT -= dt; G.invuln -= dt;
@@ -322,10 +325,14 @@ function update(dt){
   if (wasClose && G.closeT <= 0 && G.closeFromStumble){ G.closeFromStumble = false; addStat('escapes', 1); toast('😅 Entkommen! Er fällt zurück.'); }
   G.magnet = Math.max(0, G.magnet - dt);
   G.double = Math.max(0, G.double - dt);
+  G.boots = Math.max(0, G.boots - dt);
+  if (G.slowmo > 0){ G.slowmo = Math.max(0, G.slowmo - dt/SLOW); if (G.slowmo <= 0) sfx('whoosh'); }
+  G.clock += dt;
+  if (G.boots > 0 && G.grounded && Math.random() < .4) emit(G.x + (Math.random() - .5)*.4, G.y + .1, .2, 1, 0x7df9ff, .6, .35, .45);
   if (G.turbo > 0){ G.turbo -= dt; G.closeT = Math.min(G.closeT, 0); if (G.turbo <= 0) G.invuln = 1; if (Math.random() < .7) emit(G.x + (Math.random() - .5)*.6, G.y + .4 + Math.random()*1.2, .6, 1, 0xff8a2a, .4, .4, .6); }
   G.shake = Math.max(0, G.shake - dt);
   G.lineT -= dt;
-  if (G.lineT <= 0){ G.lineT = 5 + Math.random()*5; say(TRUMP_LINES[(Math.random()*TRUMP_LINES.length)|0], 2.6); }
+  if (G.lineT <= 0){ G.lineT = 5 + Math.random()*5; say(pick(chaserLines()), 2.6); }
   G.missionT -= dt;
   if (G.missionT <= 0){ G.missionT = .5; checkMissionToasts(); }
   updateChase(dt);
@@ -367,7 +374,7 @@ function update(dt){
   if (G.jet > 0){
     G.jet -= dt; G.grounded = false; G.vy = 0; G.slide = 0; G.closeT = Math.min(G.closeT, 0);
     G.y += (5.6 - G.y)*Math.min(1, dt*3.5);
-    addStat('jetDist', d);
+    addStat('jetDist', d); G.jetT += dt;
     if (Math.random() < .8) for (const sx of [-.13, .13]) emit(G.x + sx, G.y + .75, .45, 1, 0xffa030, .6, .35, .55, -3);
     if (G.jet <= 0){ G.invuln = 1.6; sfx('whoosh'); }
   }
@@ -411,6 +418,7 @@ function update(dt){
         if (o.type === 'shield') G.shield = 1; else G[o.type] = powerDur(o.type);
         if (o.type === 'turbo') say("Was?! Wie ist der so schnell?!", 2);
         if (o.type === 'jet'){ startJet(); say(pick(JET_LINES), 2.2); }
+        if (o.type === 'slowmo') sfx('whoosh');
         emit(m.position.x, m.position.y, m.position.z, 14, 0xffffff, 3, .5, .6);
         addStat('powerups', 1);
         toast(POWER_INFO[o.type].label + '!');
@@ -480,7 +488,7 @@ function frame(now){
   const flash = Math.floor(t*6) % 2 === 0;
   sirenRed.color.setHex(flash ? 0xff2020 : 0x501010); sirenBlue.color.setHex(flash ? 0x102050 : 0x2050ff);
 
-  if (state === 'running') update(dt);
+  if (state === 'running') update(G.slowmo > 0 ? dt*SLOW : dt);
   else if (state === 'caught' || state === 'over') updateCaught(dt);
   updatePalette(dt);
   updateParticles(state === 'paused' ? 0 : dt, (state === 'running' || state === 'caught' || state === 'over') && !G.turning ? G.lastD : 0);
@@ -507,7 +515,7 @@ function frame(now){
     else if (!inShop){ camPos.set(portrait ? .3 : .9, 2.0, portrait ? -7.6 : -6.0); camLook.set(portrait ? .3 : .6, portrait ? 1.6 : 1.45, 0); }
     else if (shopTab === 'chaser'){ camPos.set(0, 1.6, portrait ? -7.6 : -6.4); camLook.set(0, portrait ? -.1 : .5, 0); }
     else { camPos.set(0, 1.4, portrait ? -6.6 : -5.5); camLook.set(0, portrait ? -.1 : .4, 0); }
-    if (state === 'menu' && talk.t <= 0 && Math.random() < dt*.25) say(TRUMP_LINES[(Math.random()*TRUMP_LINES.length)|0], 2.6);
+    if (state === 'menu' && talk.t <= 0 && Math.random() < dt*.25) say(pick(chaserLines()), 2.6);
   } else {
     const caughtMode = state === 'caught' || state === 'over';
     runner.group.position.set(G.x, G.y, 0);
@@ -517,10 +525,10 @@ function frame(now){
     else if (G.jet > 0) mode = 'fly';
     else if (!G.grounded) mode = 'jump';
     else if (G.slide > 0) mode = 'slide';
-    const at = state === 'paused' ? 0 : t;
+    const at = G.clock;
     const lean = Math.max(-.35, Math.min(.35, -(LANES[G.lane] - G.x)*.16));
     poseRunner(runner, G.turbo > 0 ? at*1.5 : at, mode, state === 'paused' ? 0 : dt, {
-      lean, vy: G.vy, jt: G.jumpT, trick: G.trick && mode === 'jump', p: mode === 'slide' ? 1 - G.slide/.75 : mode === 'fall' ? G.caughtT - .15 : 0,
+      lean, vy: G.vy, jt: mode === 'fly' ? G.jetT : G.jumpT, trick: G.trick && mode === 'jump', p: mode === 'slide' ? 1 - G.slide/.75 : mode === 'fall' ? G.caughtT - .15 : 0,
       squash: G.squashT > 0 ? Math.sin(Math.PI*(1 - G.squashT/.22)) : 0});
     if (G.turning){ const k = Math.min(1, G.turning.t/G.turning.dur); runner.group.rotation.y = -G.turning.dir*Math.sin(Math.PI*k)*.6; }
     runner.shadow.position.y = .02 + Math.min(0, G.gy - G.y); runner.shadow.scale.setScalar(Math.max(.4, 1 - (G.y - G.gy)*.25));
@@ -572,9 +580,10 @@ function frame(now){
     const close = G.closeT > 0;
     $('danger').style.opacity = close ? (.55 + Math.sin(t*10)*.25) : 0;
     $('turboFx').style.opacity = G.turbo > 0 ? .9 : 0;
+    $('slowFx').style.opacity = G.slowmo > 0 ? 1 : 0;
     $('warn').hidden = !close;
     let ph = '';
-    for (const k of ['magnet', 'double', 'turbo', 'jet']) if (G[k] > 0) ph += `<div class="power">${POWER_INFO[k].label} <i><b style="width:${Math.round(G[k]/powerDur(k)*100)}%"></b></i></div>`;
+    for (const k of ['magnet', 'double', 'turbo', 'jet', 'boots', 'slowmo']) if (G[k] > 0) ph += `<div class="power">${POWER_INFO[k].label} <i><b style="width:${Math.round(G[k]/powerDur(k)*100)}%"></b></i></div>`;
     if (G.shield > 0) ph += `<div class="power">${POWER_INFO.shield.label}</div>`;
     const pw = $('powers'); if (pw._last !== ph){ pw.innerHTML = ph; pw._last = ph; }
     // crossing hint

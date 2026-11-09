@@ -60,7 +60,7 @@ function startGame(){
   runFinished = false;
   if (!save.played.includes(save.country)){ save.played.push(save.country); }
   state = 'running'; show(null); $('hud').hidden = false;
-  say("Komm sofort zurück!", 2);
+  say(chaserById(save.chaser).lines ? pick(chaserLines()) : "Komm sofort zurück!", 2);
   sfx('power'); setMusic(true, 0);
 }
 function pauseGame(){ if (state !== 'running') return; state = 'paused'; show('pause'); setMusic(false); }
@@ -291,7 +291,7 @@ function updateTalk(dt){
     bubble.style.top = Math.max(70, y) + 'px';
   } else {
     bubble.hidden = true; shout.hidden = false;
-    shout.innerHTML = '<b>Trump (hinter dir):</b> ' + talk.text.replace(/[<>&]/g, '');
+    shout.innerHTML = `<b>${chaserById(save.chaser).short || 'Trump'} (hinter dir):</b> ` + talk.text.replace(/[<>&]/g, '');
   }
 }
 

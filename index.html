@@ -59,6 +59,7 @@ button:focus-visible,textarea:focus-visible{outline:3px solid var(--gold);outlin
   background:radial-gradient(ellipse at center, transparent 50%, rgba(232,50,60,.55) 100%)}
 #turboFx{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .3s;
   background:radial-gradient(ellipse at center, transparent 55%, rgba(255,160,40,.45) 100%)}
+#slowFx{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .4s;background:radial-gradient(ellipse at center, transparent 45%, rgba(80,160,255,.42) 100%)}
 #warn{position:fixed;left:50%;top:calc(76px + env(safe-area-inset-top,0px));transform:translateX(-50%);pointer-events:none;
   font-family:var(--display);font-size:clamp(14px,3.2vw,20px);color:#fff;background:var(--red);padding:6px 14px;border-radius:8px;
   letter-spacing:.04em;white-space:nowrap;box-shadow:0 4px 0 rgba(0,0,0,.35)}
@@ -309,6 +310,7 @@ textarea#saveCode{width:100%;min-height:76px;font-family:ui-monospace,Menlo,Cons
 <canvas id="c"></canvas>
 <div id="danger"></div>
 <div id="turboFx"></div>
+<div id="slowFx"></div>
 
 <div id="hud" hidden>
   <div class="hud-left">
@@ -435,7 +437,7 @@ textarea#saveCode{width:100%;min-height:76px;font-family:ui-monospace,Menlo,Cons
 </section>
 
 <section id="over" class="screen" hidden>
-  <div class="fired">YOU'RE<br>FIRED!</div>
+  <div class="fired" id="firedStamp">YOU'RE<br>FIRED!</div>
   <p class="over-sub" id="overSub">Er hat dich erwischt.</p>
   <div class="newbest" id="newBest" hidden>NEUER REKORD!</div>
   <div class="results">

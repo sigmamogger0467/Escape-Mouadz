@@ -1,6 +1,9 @@
 'use strict';
 /* ================= Characters: rounded runners, Trump variants, ICE agents ================= */
 const numberTex = labelTex([{t:'10', size:110}], null, '#ffffff', 128, 128);
+const sevenTex = labelTex([{t:'7', size:110}], null, '#d8b04a', 128, 128);
+const sevenTexW = labelTex([{t:'7', size:110}], null, '#ffd23a', 128, 128);
+const interpolTex = labelTex([{t:'INTERPOL', size:40}], '#1d3a8a', '#ffffff', 256, 64);
 const WHITE = 0xffffff, INK = 0x15121a;
 
 function addFace(head, o){
@@ -56,7 +59,7 @@ function buildRunner(s){
   if (s.extra === 'mummy'){ faceOpts.pupil = 0xff4a2a; faceOpts.mouth = false; }
   if (s.extra === 'ninja') faceOpts.mouth = false;
   if (s.extra !== 'alien' && s.extra !== 'knight') addFace(head, faceOpts);
-  const hairStd = !['robot', 'alien', 'astro', 'knight', 'mummy', 'dino', 'ninja', 'viking'].includes(s.extra);
+  const hairStd = !['robot', 'alien', 'astro', 'knight', 'mummy', 'dino', 'ninja', 'viking', 'vini', 'sahara', 'cr7', 'khaby'].includes(s.extra);
   if (hairStd){
     rbox(.53, .16, .5, mHair, 0, .5, .01, head, .07);
     rbox(.52, .3, .12, mHair, 0, .36, .19, head, .05);
@@ -231,18 +234,55 @@ function buildRunner(s){
       rbox(.62, .08, .38, dark, 0, .97, 0, body, .03);
       break;
   }
+  if (s.extra === 'vini'){
+    plane(.4, .4, sevenTex, 0, 1.25, .182, 0, body, true);
+    rbox(.62, .07, .38, std(s.accent), 0, 1.0, 0, body, .03);
+    for (const leg of legs) caps(.12, .14, std(WHITE), 0, -.55, 0, leg);
+    for (let i = 0; i < 9; i++){ const a = i/9*Math.PI*2; sph(.09, mHair, Math.cos(a)*.17, .54 + (i % 2)*.04, Math.sin(a)*.15 + .02, head); }
+    sph(.2, mHair, 0, .56, .02, head, 1.1, .6, 1);
+    rbox(.5, .14, .1, mHair, 0, .38, .2, head, .05);
+  } else if (s.extra === 'cr7'){
+    plane(.4, .4, sevenTexW, 0, 1.25, .182, 0, body, true);
+    rbox(.52, .12, .48, mHair, 0, .5, .03, head, .05);
+    for (let i = 0; i < 5; i++) cone(.06, .14, mHair, -.16 + i*.08, .6, -.08 + (i % 2)*.06, head, 6).rotation.x = -.5;
+    rbox(.5, .22, .1, mHair, 0, .38, .2, head, .04);
+    rbox(.62, .07, .38, std(0x0a5a2a), 0, 1.0, 0, body, .03);
+  } else if (s.extra === 'messi'){
+    plane(.4, .4, numberTex, 0, 1.25, .2, 0, body, true);
+    const sky = std(s.accent);
+    for (const x of [-.2, 0, .2]){ rbox(.08, .62, .02, sky, x, 1.22, -.181, body, .01); rbox(.08, .62, .02, sky, x, 1.22, .181, body, .01); }
+    sph(.2, mHair, 0, .1, -.13, head, 1.15, .7, .75);
+    rbox(.3, .05, .05, mHair, 0, .18, -.23, head, .02);
+  } else if (s.extra === 'beast'){
+    rbox(.5, .16, .16, mShirt, 0, 1.55, .17, body, .07);
+    sph(.2, mHair, 0, .12, -.12, head, 1.15, .65, .8);
+    rbox(.24, .24, .03, std(0x15151a), 0, 1.25, -.185, body, .04);
+    sph(.06, std(0x7dc8ff), 0, 1.25, -.2, body, 1.3, 1, .3);
+  } else if (s.extra === 'khaby'){
+    rbox(.52, .1, .5, mHair, 0, .51, .01, head, .05);
+    rbox(.5, .2, .08, mHair, 0, .38, .2, head, .03);
+  } else if (s.extra === 'sahara'){
+    const robe = std(s.shirt), wrap = std(s.accent);
+    cyl(.34, .42, .62, robe, 0, .62, 0, body, 16);
+    for (let i = 0; i < 4; i++) torus(.26 - i*.012, .055, wrap, 0, .38 + i*.07, .01, head).rotation.x = Math.PI/2 + (i % 2 ? .12 : -.08);
+    sph(.25, wrap, 0, .58, .02, head, 1, .55, 1);
+    rbox(.48, .2, .06, wrap, 0, .15, -.21, head, .05);
+    rbox(.28, .32, .03, std(0xd8b04a), 0, 1.2, -.185, body, .03);
+    for (const a of arms) torus(.11, .03, robe, 0, -.42, 0, a).rotation.x = Math.PI/2;
+  }
   // jetpack (shown while the power-up is active)
-  const jet = new THREE.Group(); jet.position.set(0, 1.25, .26); body.add(jet); jet.visible = false;
+  const jet = new THREE.Group(), flames = []; jet.position.set(0, 1.25, .26); body.add(jet); jet.visible = false;
   for (const sx of [-.13, .13]){
     cyl(.1, .1, .5, std(0xc8ccd4, .25, .6), sx, 0, 0, jet, 14);
     cone(.1, .14, std(0xe8323c), sx, .32, 0, jet, 14);
-    const fl = cone(.08, .35, glowMat(0xffa030), sx, -.42, 0, jet, 10); fl.rotation.x = Math.PI;
+    const fl = cone(.08, .35, glowMat(0xffa030), sx, -.42, 0, jet, 10); fl.rotation.x = Math.PI; fl.userData.keep = true; flames.push(fl);
+    const core = cone(.045, .22, glowMat(0xfff6c0), sx, -.36, 0, jet, 8); core.rotation.x = Math.PI; core.userData.keep = true; flames.push(core);
   }
   rbox(.36, .3, .08, std(0x4a4f5a), 0, 0, -.06, jet, .03);
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(.5, 20), new THREE.MeshBasicMaterial({color:0, transparent:true, opacity:.22, depthWrite:false}));
   shadow.rotation.x = -Math.PI/2; shadow.position.y = .02; g.add(shadow);
   castAll(g); mergeTree(g);
-  return {group:g, body, legL:legs[0], legR:legs[1], armL:arms[0], armR:arms[1], head, cape, shadow, jet, zombie: s.extra === 'zombie' || s.extra === 'mummy'};
+  return {group:g, body, legL:legs[0], legR:legs[1], armL:arms[0], armR:arms[1], head, cape, shadow, jet, flames, special: s.extra, zombie: s.extra === 'zombie' || s.extra === 'mummy'};
 }
 
 /* ---- animation helpers: every pose is computed as a target, then blended from the last frame ---- */
@@ -268,7 +308,10 @@ function pivotBody(body, phi, c, drop){
   body.position.y = c - c*Math.cos(phi) - (drop || 0);
   body.position.z = -c*Math.sin(phi);
 }
-function poseRunner(r, t, mode, dt, o){ blendPose(r, () => animRunner(r, t, mode, o || {}), mode === 'slide' || (o && o.trick) ? 26 : 16, dt || .016); }
+function poseRunner(r, t, mode, dt, o){
+  blendPose(r, () => animRunner(r, t, mode, o || {}), mode === 'slide' || (o && o.trick) || mode === 'fly' ? 26 : 16, dt || .016);
+  if (r.flames && r.jet.visible) for (const f of r.flames){ const k = .75 + Math.random()*.6; f.scale.set(.85 + Math.random()*.3, k*(mode === 'fly' ? 1.5 : 1), .85 + Math.random()*.3); }
+}
 function poseTrump(r, t, mode, dt){ blendPose(r, () => animTrump(r, t, mode), 12, dt || .016); }
 
 function animRunner(r, t, mode, o){
@@ -307,11 +350,15 @@ function animRunner(r, t, mode, o){
       if (cape) cape.rotation.x = vy > 0 ? -.3 : -1.2;
     }
   } else if (mode === 'fly'){
-    legL.rotation.x = .3 + Math.sin(t*6)*.15; legR.rotation.x = .1 - Math.sin(t*6)*.15;
-    armL.rotation.set(-.2, 0, -1.1); armR.rotation.set(-.2, 0, 1.1);
-    body.rotation.x = -.35; body.position.y = Math.sin(t*4)*.06; body.rotation.z = (o.lean || 0)*1.4;
-    head.rotation.x = -.2;
-    if (cape) cape.rotation.x = -1.3;
+    // superhero flight: body stretched out flat, one fist forward, jets pointing back; a barrel roll on take-off
+    const jt = o.jt || 0, roll = jt < .7 ? Math.PI*2*smooth01(jt/.7) : 0;
+    pivotBody(body, -1.25, 1.0, -.15 - Math.sin(t*4)*.08);
+    body.rotation.z = (o.lean || 0)*1.6 + Math.sin(t*2.6)*.07 + roll;
+    legL.rotation.x = .08 + Math.sin(t*7)*.12; legR.rotation.x = .02 - Math.sin(t*7)*.12;
+    legL.rotation.z = -.05; legR.rotation.z = .05;
+    armR.rotation.set(r.zombie ? 2.8 : 2.95, 0, .12); armL.rotation.set(r.zombie ? 2.8 : .25, 0, -.22);
+    head.rotation.x = 1.05;
+    if (cape) cape.rotation.x = -.15 + Math.sin(t*18)*.12;
   } else if (mode === 'slide'){
     // forward roll: curl into a ball, roll once over the ground, uncurl
     const p = o.p === undefined ? .5 : o.p;
@@ -331,6 +378,16 @@ function animRunner(r, t, mode, o){
   } else if (mode === 'grab'){
     armL.rotation.x = 1.3 + Math.sin(t*3)*.05; armR.rotation.x = .2;
     head.rotation.y = Math.sin(t*1.3)*.2;
+  } else if (mode === 'cheer' && r.special === 'khaby'){
+    // the famous shrug: palms up, eyebrows of disbelief
+    const s = Math.sin(t*3);
+    armL.rotation.set(.75, -.5, -.42 - s*.05); armR.rotation.set(.75, .5, .42 + s*.05);
+    head.rotation.z = .12 + s*.03; head.rotation.x = -.08; body.position.y = Math.abs(s)*.03;
+  } else if (mode === 'cheer' && r.special === 'cr7'){
+    const k = (t*1.2) % 1, up = Math.sin(Math.min(1, k/.5)*Math.PI);
+    body.position.y = up*.45; body.rotation.y = up*Math.PI*.9;
+    armL.rotation.set(-.3, 0, -1.0*up - .2); armR.rotation.set(-.3, 0, 1.0*up + .2);
+    legL.rotation.x = up*.3; legR.rotation.x = up*.2;
   } else if (mode === 'cheer'){
     const s = Math.sin(t*9);
     armL.rotation.set(2.7 + s*.25, 0, -.35); armR.rotation.set(2.7 - s*.25, 0, .35);
@@ -345,6 +402,40 @@ function animRunner(r, t, mode, o){
   }
 }
 
+// Head for chasers that are not Trump: rounder face, normal eyes, one of several hairstyles
+function buildChaserHead(c, head, skin, hair){
+  cyl(.16, .18, .16, skin, 0, .05, 0, head);
+  rbox(.56, .62, .54, skin, 0, .4, 0, head, .24);
+  for (const sx of [-1, 1]) sph(.08, skin, sx*.29, .42, 0, head, .5, 1, .8);
+  sph(.07, skin, 0, .38, -.285, head, .9, 1.2, 1);
+  addFace(head, {y:.47, z:-.255, spread:.13, size:1.12, brow: c.face === 'side' || c.face === 'bald' ? std(0x8a8a90) : hair, mouth: c.extra === 'friendly' ? 'smile' : c.face === 'receding' ? 'flat' : 'smile'});
+  switch (c.face){
+    case 'side':
+      sph(.3, hair, -.02, .68, .04, head, 1, .42, 1.02);
+      sph(.16, hair, -.14, .7, -.2, head, 1.3, .4, .8).rotation.z = .2;
+      rbox(.56, .26, .14, hair, 0, .52, .24, head, .06);
+      for (const sx of [-1, 1]) rbox(.06, .22, .4, hair, sx*.28, .55, .05, head, .03);
+      break;
+    case 'receding':
+      rbox(.56, .22, .14, hair, 0, .52, .24, head, .06);
+      for (const sx of [-1, 1]) rbox(.06, .2, .36, hair, sx*.28, .54, .06, head, .03);
+      sph(.18, hair, 0, .7, .1, head, 1, .25, 1);
+      break;
+    case 'flattop':
+      rbox(.56, .26, .52, hair, 0, .75, .02, head, .05);
+      rbox(.56, .08, .1, hair, 0, .64, -.25, head, .03);
+      for (const sx of [-1, 1]) rbox(.04, .18, .42, std(0x3a3a3a), sx*.285, .52, .04, head, .02);
+      break;
+    case 'bald':
+      rbox(.56, .2, .14, hair, 0, .5, .24, head, .06);
+      for (const sx of [-1, 1]) rbox(.06, .18, .34, hair, sx*.28, .52, .08, head, .03);
+      break;
+    default:
+      sph(.3, hair, 0, .66, .03, head, 1, .45, 1.02);
+      rbox(.56, .28, .14, hair, 0, .52, .24, head, .06);
+      for (const sx of [-1, 1]) rbox(.06, .2, .38, hair, sx*.28, .55, .05, head, .03);
+  }
+}
 function buildTrump(c){
   const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
   const metal = c.extra === 'gold' || c.extra === 'robot';
@@ -360,8 +451,8 @@ function buildTrump(c){
     rbox(.36, .18, .54, shoe, 0, -.91, -.07, leg, .08);
     legs.push(leg);
   }
-  rbox(1.0, .96, .72, suit, 0, 1.5, 0, body, .3);
-  sph(.46, suit, 0, 1.3, -.17, body, 1.0, .85, .8);
+  if (c.slim) rbox(.86, .98, .6, suit, 0, 1.5, 0, body, .26);
+  else { rbox(1.0, .96, .72, suit, 0, 1.5, 0, body, .3); sph(.46, suit, 0, 1.3, -.17, body, 1.0, .85, .8); }
   if (c.shirt !== c.suit){
     rbox(.3, .44, .06, shirt, 0, 1.75, -.34, body, .03);
     for (const sx of [-1, 1]) rbox(.12, .4, .05, M(c.suit), sx*.17, 1.74, -.36, body, .02).rotation.z = sx*.25;
@@ -370,8 +461,8 @@ function buildTrump(c){
     const tie = M(c.tie);
     rbox(.13, .11, .07, tie, 0, 1.9, -.4, body, .03);
     rbox(.13, .32, .045, tie, 0, 1.7, -.43, body, .02).rotation.x = -.35;
-    rbox(.16, .62, .045, tie, 0, 1.25, -.55, body, .02);
-    rbox(.12, .12, .045, tie, 0, .94, -.54, body, .01).rotation.z = Math.PI/4;
+    if (c.slim){ rbox(.14, .5, .04, tie, 0, 1.35, -.33, body, .02); rbox(.1, .1, .04, tie, 0, 1.08, -.33, body, .01).rotation.z = Math.PI/4; }
+    else { rbox(.16, .62, .045, tie, 0, 1.25, -.55, body, .02); rbox(.12, .12, .045, tie, 0, .94, -.54, body, .01).rotation.z = Math.PI/4; }
   }
   if (c.id === 'classic'){ sph(.035, std(0x2b56d6), -.3, 1.82, -.36, body); }
   for (const sx of [-1, 1]){
@@ -383,6 +474,8 @@ function buildTrump(c){
     arms.push(arm);
   }
   const head = new THREE.Group(); head.position.set(0, 1.97, 0); body.add(head);
+  if (c.face) buildChaserHead(c, head, skin, hair);
+  else {
   cyl(.17, .19, .16, skin, 0, .05, 0, head);
   rbox(.62, .62, .58, skin, 0, .4, 0, head, .24);
   sph(.3, skin, 0, .18, -.06, head, 1.02, .6, .95);
@@ -401,6 +494,7 @@ function buildTrump(c){
   const swoop = sph(.26, hair, .07, .69, -.22, head, 1.45, .42, .9); swoop.rotation.z = -.15;
   for (const sx of [-1, 1]) sph(.13, hair, sx*.29, .58, .06, head, .55, 1, 1.7);
   rbox(.6, .3, .16, hair, 0, .55, .27, head, .07);
+  }
 
   let cape = null;
   switch (c.extra){
@@ -494,6 +588,35 @@ function buildTrump(c){
       rbox(1.04, .44, .8, std(WHITE), 0, 1.06, -.02, body, .15);
       rbox(.12, .22, .04, dark, 0, -.98, -.12, arms[0], .02);
       break;
+    case 'ref': {
+      rbox(.4, .1, .1, std(WHITE), 0, 1.96, -.24, body, .04);
+      for (const sx of [-1, 1]) rbox(.06, .5, .02, std(WHITE), sx*.3, 1.55, -.31, body, .01);
+      cyl(.006, .006, .5, std(0x111111), 0, 1.75, -.32, body, 4).rotation.z = .2;
+      const wh = cyl(.03, .03, .1, std(0xd8dce4, .3, .6), .02, .2, -.33, head, 10); wh.rotation.x = Math.PI/2;
+      const card = rbox(.03, .3, .22, std(0xe8102a), 0, -1.05, -.05, arms[1], .02); card.userData.keep = true;
+      rbox(.03, .26, .2, std(0xffd23a), .32, 1.25, -.2, body, .02).rotation.z = .1;
+      for (const l of legs) caps(.175, .18, std(0x15151a), 0, -.62, 0, l);
+      break;
+    }
+    case 'interpol':
+      rbox(.46, .1, .04, std(0x050508), 0, .47, -.3, head, .03);
+      cyl(.02, .02, .14, std(0x15151a), -.29, .3, .02, head, 6);
+      rbox(.28, .16, .02, std(0xd8b04a), -.22, 1.75, -.315, body, .03);
+      plane(.5, .12, interpolTex, 0, 1.75, .305, 0, body);
+      break;
+    case 'friendly':
+      for (const sx of [-1, 1]) sph(.07, std(0xff9aa8), sx*.2, .36, -.24, head, 1, .7, .4);
+      sph(.03, std(0x2f6bff), -.28, 1.84, -.31, body);
+      break;
+    case 'mao':
+      cyl(.2, .22, .14, std(c.suit), 0, 1.95, 0, body, 16);
+      for (let i = 0; i < 5; i++) sph(.025, std(0x2a2a30), 0, 1.86 - i*.16, -.31, body);
+      for (const sx of [-1, 1]) rbox(.18, .14, .03, std(0x22222a), sx*.22, 1.72, -.31, body, .02);
+      break;
+    case 'tee':
+      for (const a of arms){ cyl(.135, .135, .3, std(c.skin || 0xf0c8a8), 0, -.62, 0, a, 12); }
+      rbox(.3, .08, .02, std(0xdddddd), 0, 1.7, -.31, body, .01);
+      break;
     case 'bling': {
       for (const [r, y] of [[.3, 1.75], [.36, 1.6]]){ const ch = torus(r, .03, gold, 0, y, -.3, body); ch.rotation.x = 1.2; }
       rbox(.22, .22, .05, gold, 0, 1.42, -.56, body, .03);
@@ -502,9 +625,10 @@ function buildTrump(c){
       break;
     }
   }
+  if (c.glasses){ for (const sx of [-1, 1]) torus(.075, .014, std(0x1a1a20), sx*.13, .47, -.27, head); rbox(.08, .02, .02, std(0x1a1a20), 0, .48, -.27, head, .01); }
   castAll(g); mergeTree(g);
   g.scale.setScalar(.9);
-  return {group:g, body, legL:legs[0], legR:legs[1], armL:arms[0], armR:arms[1], head, cape, zombie: c.extra === 'zombie'};
+  return {group:g, body, legL:legs[0], legR:legs[1], armL:arms[0], armR:arms[1], head, cape, zombie: c.extra === 'zombie', wave: c.extra === 'friendly'};
 }
 function animTrump(r, t, mode){
   const {legL, legR, armL, armR, body, head, cape} = r;
@@ -514,6 +638,7 @@ function animTrump(r, t, mode){
     const ph = t*13, s = Math.sin(ph);
     legL.rotation.x = s*.9; legR.rotation.x = -s*.9;
     if (r.zombie){ armL.rotation.x = 1.45 + s*.1; armR.rotation.x = 1.45 - s*.1; }
+    else if (r.wave){ armL.rotation.set(-s*1.0 + .2, 0, -.4); armR.rotation.set(2.9, 0, .35 + Math.sin(t*9)*.35); }
     else {
       // big flailing arms, half a beat late, for the comedic chase
       const s2 = Math.sin(ph - .5);

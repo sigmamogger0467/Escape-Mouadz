@@ -45,6 +45,18 @@ const SKINS = [
    skin:0xe8dfc4, shirt:0xe8dfc4, pants:0xd8cfb4, shoes:0xc8bfa4, hair:0xe8dfc4, accent:0x8a7a5a, extra:'mummy'},
   {id:'gold', name:'Goldjunge', price:3500, emoji:'👑', desc:'Komplett aus Gold. Mit Krone. Teuer.',
    skin:0xffd24a, shirt:0xffc21a, pants:0xe8a90f, shoes:0xffe27a, hair:0xffd24a, accent:0xff3b6b, extra:'gold'},
+  {id:'khaby', name:'Khaby Lame', price:650, emoji:'🤷', desc:'Sagt nichts, zuckt nur mit den Schultern. Genial einfach.',
+   skin:0x4a2e1e, shirt:0x15151a, pants:0x6a6f7a, shoes:0xf4f4f4, hair:0x111111, accent:0xffffff, extra:'khaby'},
+  {id:'beast', name:'MrBeast', price:1000, emoji:'💸', desc:'Blauer Hoodie, Bart, verschenkt nebenbei Münzen.',
+   skin:0xe8b48a, shirt:0x2a6aff, pants:0x4a4f5a, shoes:0x15151a, hair:0x6a4020, accent:0x7dc8ff, extra:'beast'},
+  {id:'sahara', name:'Sahara-Läufer', price:1300, emoji:'🐪', desc:'Djellaba und Tuareg-Turban. Kennt jede Düne.',
+   skin:0xb8784a, shirt:0x2a4a9a, pants:0x2a4a9a, shoes:0xd8a860, hair:0x1a1008, accent:0x1a2a6a, extra:'sahara'},
+  {id:'messi', name:'Lionel Messi', price:2200, emoji:'🐐', desc:'Himmelblau-weiß gestreift, die 10 auf dem Rücken.',
+   skin:0xe8b48a, shirt:0xffffff, pants:0x15151a, shoes:0x3ac8ff, hair:0x5a3a20, accent:0x74b8ec, extra:'messi'},
+  {id:'cr7', name:'Cristiano Ronaldo', price:2600, emoji:'💪', desc:'Rotes Trikot, die 7 und der berühmte Jubel.',
+   skin:0xd9a074, shirt:0xc8102e, pants:0x0a5a2a, shoes:0xffd23a, hair:0x15151a, accent:0xffd23a, extra:'cr7'},
+  {id:'vini', name:'Vinícius Júnior', price:3000, emoji:'⚡', desc:'Weißes Trikot mit der 7, Locken und Tempo ohne Ende.',
+   skin:0x5a3a26, shirt:0xffffff, pants:0xffffff, shoes:0xff4a8a, hair:0x111111, accent:0xd8b04a, extra:'vini'},
   {id:'dino', name:'Dino', price:4000, emoji:'🦖', desc:'Dino-Kostüm mit Zähnen, Stacheln und Schwanz.',
    skin:0xd9a074, shirt:0x4cbf4a, pants:0x4cbf4a, shoes:0x2f8a3a, hair:0x4cbf4a, accent:0xff8a2a, extra:'dino'},
 ];
@@ -80,6 +92,27 @@ const CHASERS = [
    suit:0x5a1a7a, pants:0x3a1050, shirt:0xffffff, tie:0xffc21a, extra:'king'},
   {id:'baby', name:'Baby-Trump', price:4500, emoji:'🍼', desc:'Riesenkopf, Windel, Handy. Wutanfall garantiert.',
    suit:0xf0a457, pants:0xf0a457, shirt:0xf0a457, tie:null, shoes:0xf0a457, extra:'baby'},
+  {id:'ref', name:'Schiedsrichter', price:900, emoji:'🟥', short:'Schiri', stamp:'ROTE<br>KARTE!', desc:'Pfeife, schwarzes Trikot und die Rote Karte in der Hand.',
+   suit:0x15151a, pants:0x15151a, shirt:0x15151a, tie:null, shoes:0x15151a, skin:0xe0a878, hair:0x2a1a10, face:'short', slim:true, extra:'ref',
+   lines:["Foul! Das gibt Rot!", "Abseits! Stehen bleiben!", "Gelbe Karte. Nein, ROTE!", "Der Videobeweis läuft!", "Ich pfeife das jetzt ab!"]},
+  {id:'interpol', name:'Interpol-Agent', price:1300, emoji:'🕵️', short:'Interpol', stamp:'VERHAF-<br>TET!', desc:'Dunkler Anzug, Sonnenbrille, Funk im Ohr.',
+   suit:0x1d2438, pants:0x1d2438, shirt:0xffffff, tie:0x111111, skin:0xd9a074, hair:0x15151a, face:'short', slim:true, extra:'interpol',
+   lines:["Interpol! Stehen bleiben!", "Sie sind international gesucht!", "Wir haben Ihre Akte!", "Zentrale, Ziel ist auf der Flucht!", "Keine Bewegung!"]},
+  {id:'bibi', name:'Benjamin Netanyahu', price:2200, emoji:'🤝', short:'Netanyahu', stamp:'SCHÖN SIE<br>ZU TREFFEN!', desc:'Ein sehr netter, freundlicher Herr. Will nur kurz Hallo sagen.',
+   suit:0x22283a, pants:0x22283a, shirt:0xffffff, tie:0x2f6bff, skin:0xe8b48a, hair:0xc8c8cc, face:'side', extra:'friendly',
+   lines:["Entschuldigung, hätten Sie kurz eine Minute?", "Bitte, nach Ihnen!", "Was für ein schöner Tag zum Laufen!", "Ich wollte nur freundlich Hallo sagen!", "Darf ich Sie auf einen Kaffee einladen?"]},
+  {id:'putin', name:'Wladimir Putin', price:2600, emoji:'🐻', short:'Putin', stamp:'NJET!', desc:'Grauer Anzug, ernster Blick, macht angeblich Judo.',
+   suit:0x3a3e48, pants:0x3a3e48, shirt:0xffffff, tie:0x7a1a2a, skin:0xf0c8a8, hair:0xd8c8a0, face:'receding', slim:true,
+   lines:["Komm zurück, Towarischtsch!", "Njet! Nicht wegrennen!", "Ich bin auch sehr schnell. Im Judo.", "Das war so nicht abgesprochen!"]},
+  {id:'kim', name:'Kim Jong-un', price:3200, emoji:'🚀', short:'Kim', stamp:'HISTORISCHER<br>ERFOLG!', desc:'Schwarzer Stehkragen-Anzug, die berühmte Frisur.',
+   suit:0x1a1a20, pants:0x1a1a20, shirt:0x1a1a20, tie:null, skin:0xf0d0a8, hair:0x111111, face:'flattop', extra:'mao',
+   lines:["Ich bin der beste Läufer der Welt. Offiziell!", "Halt! Das ist ein Befehl!", "Dieser Lauf ist ein historischer Erfolg!", "Alle klatschen für mich!"]},
+  {id:'musk', name:'Elon Musk', price:3800, emoji:'🛸', short:'Musk', stamp:'ZUM<br>MARS!', desc:'Schwarzes T-Shirt, Jeans und große Pläne.',
+   suit:0x15151a, pants:0x2a3a5a, shirt:0x15151a, tie:null, shoes:0x15151a, skin:0xf0c8a8, hair:0x5a3a20, face:'short', slim:true, extra:'tee',
+   lines:["Ich kaufe einfach dieses Spiel!", "Zum Mars mit dir!", "Das poste ich gleich!", "Mein Roboter rennt schneller als du!"]},
+  {id:'merz', name:'Friedrich Merz', price:4200, emoji:'👓', short:'Merz', stamp:'CHEF-<br>SACHE!', desc:'Groß, Brille, dunkler Anzug.',
+   suit:0x2a3048, pants:0x2a3048, shirt:0xffffff, tie:0x5a6a9a, skin:0xf0c8a8, hair:0xc8c8cc, face:'bald', glasses:true, slim:true,
+   lines:["Stehen bleiben, das ist Chefsache!", "Ich mach das jetzt einfach!", "Wir müssen alle mehr laufen!", "Das regeln wir anders!"]},
   {id:'bling', name:'Bling-Trump', price:5000, emoji:'💎', desc:'Weißer Anzug, Goldketten, Sonnenbrille.',
    suit:0xf4f1ea, pants:0xf4f1ea, shirt:0x111111, tie:0xffc21a, shoes:0xffc21a, extra:'bling'},
 ];
@@ -95,6 +128,9 @@ const TRUMP_LINES = [
   "Das ist der unfairste Lauf aller Zeiten!", "Ich kaufe einfach die ganze Straße!"
 ];
 const STUMBLE_LINES = ["HAB DICH GLEICH!", "Gleich bist du gefeuert!", "Jetzt wird's eng, Loser!", "Ha! Gestolpert! Sad!", "ICE, jetzt zugreifen!"];
+// lines of the chosen chaser (Trump's by default)
+const chaserLines = () => chaserById(save.chaser).lines || TRUMP_LINES;
+const chaserStumble = () => chaserById(save.chaser).lines || STUMBLE_LINES;
 const JET_LINES = ["Unfair! Der fliegt!", "Ich will auch so ein Ding!", "Komm sofort runter!"];
 
 /* ================= Countries and their worlds ================= */
@@ -266,6 +302,8 @@ const UPGRADES = [
   {id:'double', name:'Doppelte Münzen', emoji:'💰', base:12, desc:'Jede Münze zählt doppelt.'},
   {id:'turbo', name:'Turbo', emoji:'🚀', base:4.5, desc:'Schneller und unverwundbar, Trump fällt zurück.'},
   {id:'jet', name:'Jetpack', emoji:'🎒', base:7, desc:'Flieg über alles hinweg und sammle Münzen in der Luft.'},
+  {id:'boots', name:'Sprungschuhe', emoji:'👟', base:10, desc:'Springe viel höher, sogar direkt auf Züge.'},
+  {id:'slowmo', name:'Zeitlupe', emoji:'⏳', base:6, desc:'Die Welt wird langsamer, du hast mehr Zeit zum Reagieren.'},
 ];
 const UPGRADE_COST = [250, 600, 1200, 2500, 5000];
 const UPGRADE_MAX = UPGRADE_COST.length;
