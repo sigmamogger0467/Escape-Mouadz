@@ -5,9 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Mouadz Escapes Trump</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Fredoka:wght@400;500;600;700&display=swap">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0f1230">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mouadz">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+@font-face{font-family:'Luckiest Guy';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/luckiest-guy-latin-400-normal.woff2) format('woff2')}
+@font-face{font-family:'Fredoka';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/fredoka-latin-400-normal.woff2) format('woff2')}
+@font-face{font-family:'Fredoka';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/fredoka-latin-500-normal.woff2) format('woff2')}
+@font-face{font-family:'Fredoka';font-style:normal;font-weight:600;font-display:swap;src:url(fonts/fredoka-latin-600-normal.woff2) format('woff2')}
+@font-face{font-family:'Fredoka';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/fredoka-latin-700-normal.woff2) format('woff2')}
+</style>
 <style>
 /* Layout: full-bleed WebGL street at dusk; HUD floats at the screen edges, menus are panels over the live 3D scene */
 :root{
@@ -482,7 +495,7 @@ textarea#saveCode{width:100%;min-height:76px;font-family:ui-monospace,Menlo,Cons
   <div class="panel-col"><button class="btn primary" id="crateOk" hidden>SUPER!</button></div>
 </section>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
+<script src="js/three.min.js"></script>
 <script src="js/data.js"></script>
 <script src="js/core.js"></script>
 <script src="js/gfx.js"></script>
@@ -492,5 +505,10 @@ textarea#saveCode{width:100%;min-height:76px;font-family:ui-monospace,Menlo,Cons
 <script src="js/game.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/main.js"></script>
+<script>
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
+</script>
 </body>
 </html>
