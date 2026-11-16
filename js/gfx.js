@@ -11,6 +11,11 @@ try{
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+// realistic look: colors are handled in linear light, the picture is tone-mapped like film
+THREE.ColorManagement.legacyMode = false;
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 400);
 
@@ -20,7 +25,7 @@ function canvasTex(w, h, draw){
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   draw(c.getContext('2d'), w, h);
   const t = new THREE.CanvasTexture(c);
-  t.anisotropy = 4;
+  t.anisotropy = 8; t.encoding = THREE.sRGBEncoding;
   if (String(draw).includes('.font')) fontTextures.push({c, draw, t});
   return t;
 }
@@ -35,7 +40,7 @@ const hemi = new THREE.HemisphereLight(0xffe2c8, 0x3a3060, 0.95); scene.add(hemi
 const sun = new THREE.DirectionalLight(0xffd2a8, 0.9);
 sun.position.set(-6, 14, 5); sun.target.position.set(0, 0, -5);
 sun.castShadow = true;
-sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.mapSize.set(2048, 2048); sun.shadow.radius = 3;
 Object.assign(sun.shadow.camera, {left:-11, right:11, top:16, bottom:-9, near:1, far:45});
 sun.shadow.bias = -0.0015; sun.shadow.normalBias = .02;
 scene.add(sun); scene.add(sun.target);
@@ -43,7 +48,7 @@ function setShadows(on){ renderer.shadowMap.enabled = on; sun.castShadow = on; s
 // Graphics quality: high = shadows + outlines, mid = outlines, low = neither and a lower resolution
 const gfxQ = {level:'high', outline:true};
 function setQuality(q){
-  gfxQ.level = q; gfxQ.outline = q !== 'low';
+  gfxQ.level = q; gfxQ.outline = false; envDirty = true;
   setShadows(q === 'high');
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, q === 'high' ? 2 : q === 'mid' ? 1.5 : 1));
   if (typeof resize === 'function') resize();
@@ -52,17 +57,18 @@ function setQuality(q){
 // Cartoon shading: three hard light bands instead of smooth gradients
 const toonGrad = new THREE.DataTexture(new Uint8Array([120, 120, 120, 255, 200, 200, 200, 255, 255, 255, 255, 255]), 3, 1, THREE.RGBAFormat);
 toonGrad.minFilter = toonGrad.magFilter = THREE.NearestFilter; toonGrad.generateMipmaps = false; toonGrad.needsUpdate = true;
-function toon(opts){ return new THREE.MeshToonMaterial(Object.assign({gradientMap: toonGrad}, opts)); }
+// all surfaces are physically based now; 'toon' keeps its name because the whole game builds materials through it
+function toon(opts){ return new THREE.MeshStandardMaterial(Object.assign({roughness:.82, metalness:0}, opts)); }
 const matCache = {};
-function lam(color){ const k = 'l' + color; return matCache[k] || (matCache[k] = toon({color})); }
+function lam(color){ const k = 'l' + color; return matCache[k] || (matCache[k] = toon({color, roughness:.9})); }
 function basic(color){ const k = 'b' + color; return matCache[k] || (matCache[k] = new THREE.MeshBasicMaterial({color})); }
 function std(color, rough, metal){
-  const k = `s${color}_${metal ? 1 : 0}`;
-  return matCache[k] || (matCache[k] = toon({color, emissive: metal ? new THREE.Color(color).multiplyScalar(.12) : 0}));
+  const r = rough === undefined ? .72 : rough, m = metal || 0, k = `s${color}_${r}_${m}`;
+  return matCache[k] || (matCache[k] = new THREE.MeshStandardMaterial({color, roughness:r, metalness:m}));
 }
 function glossy(color, emissive){
   const k = `g${color}_${emissive || 0}`;
-  return matCache[k] || (matCache[k] = toon({color, emissive: emissive ? new THREE.Color(emissive).multiplyScalar(1.6) : new THREE.Color(color).multiplyScalar(.1)}));
+  return matCache[k] || (matCache[k] = new THREE.MeshStandardMaterial({color, roughness:.22, metalness:.75, emissive: emissive || 0, emissiveIntensity:.6}));
 }
 function glowMat(color){ const k = 'e' + color; return matCache[k] || (matCache[k] = new THREE.MeshBasicMaterial({color, toneMapped:false})); }
 
@@ -160,8 +166,19 @@ function outlineAll(g){
   return g;
 }
 const edgesGeo = new THREE.EdgesGeometry(boxGeo);
-const edgeMat = new THREE.LineBasicMaterial({color: INK_COLOR, transparent: true, opacity: .55});
+const edgeMat = new THREE.LineBasicMaterial({color: INK_COLOR, transparent: true, opacity: .16});
+// The sky is also used as the light the surfaces reflect (image based lighting)
+const pmrem = new THREE.PMREMGenerator(renderer);
+let envRT = null, envDirty = true, envAt = 0;
+function updateEnv(){
+  envDirty = false; envAt = performance.now();
+  if (gfxQ.level === 'low' || typeof skyTex === 'undefined'){ scene.environment = null; return; }
+  const rt = pmrem.fromEquirectangular(skyTex);
+  if (envRT) envRT.dispose();
+  envRT = rt; scene.environment = rt.texture;
+}
 function renderScene(){
+  if (envDirty && performance.now() - envAt > 500) updateEnv();
   renderer.render(scene, camera);
   if (!gfxQ.outline) return;
   const bg = scene.background, su = renderer.shadowMap.autoUpdate;

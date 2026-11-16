@@ -306,6 +306,8 @@ const MISSIONS = [
   {id:'turns',  stat:'turns',        base:50,  targets:[3,10,30,80,200], text:n => `Biege ${fmt(n)} Mal an Kreuzungen ab`},
   {id:'roof',   stat:'roofDist',     base:60,  targets:[100,500,1500,4000,10000], text:n => `Lauf ${fmt(n)} m auf Zugdächern`},
   {id:'smash',  stat:'smashed',      base:50,  targets:[5,20,60,150,400], text:n => `Räum ${fmt(n)} Hindernisse mit Turbo oder Schild ab`},
+  {id:'routes', stat:'routes',       base:60,  targets:[2,6,15,40,100], text:n => `Nimm ${fmt(n)} Mal die Dächer oder die U-Bahn`},
+  {id:'bosses', stat:'bosses',       base:120, targets:[1,3,8,20,50], text:n => n === 1 ? 'Wehre einen Hubschrauber-Angriff ab' : `Wehre ${fmt(n)} Hubschrauber-Angriffe ab`},
   {id:'worlds', stat:'worldMax',     base:150, targets:[1,2,3,4,5], text:n => `Erreiche die ${n + 1}. Welt eines Landes`},
   {id:'lands',  stat:'countriesPlayed', base:120, targets:[2,3,5,7], text:n => `Lauf in ${n} verschiedenen Ländern`},
   {id:'runs',   stat:'runs',         base:40,  targets:[3,10,25,50,100,200], text:n => `Spiele ${fmt(n)} Läufe`},

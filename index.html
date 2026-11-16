@@ -204,6 +204,16 @@ textarea#saveCode{width:100%;min-height:76px;font-family:ui-monospace,Menlo,Cons
 .world-pill{font-size:13px;font-weight:600;padding:4px 12px}
 .cloud-line{margin:0;font-size:13px;font-weight:600;line-height:1.45;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid var(--panel-line)}
 .cloud-line.ok{color:var(--ok)} .cloud-line.warn{color:#ffd27a}
+#alert{position:fixed;left:50%;top:calc(186px + env(safe-area-inset-top,0px));transform:translateX(-50%);pointer-events:none;z-index:15;text-align:center;
+  font-family:var(--display);font-size:clamp(17px,4.2vw,27px);letter-spacing:.04em;color:#2a1700;background:var(--gold);padding:9px 18px 6px;border-radius:14px;
+  box-shadow:0 5px 0 rgba(0,0,0,.35);max-width:calc(100vw - 32px);animation:alertIn .35s cubic-bezier(.2,1.6,.4,1) both}
+#alert small{display:block;font-family:var(--body);font-weight:600;font-size:13px;letter-spacing:0;margin-top:2px}
+#alert.warn{background:#ffd23a} #alert.hot{background:var(--red);color:#fff} #alert.cool{background:#3ddc84;color:#06331a}
+@keyframes alertIn{from{transform:translateX(-50%) scale(.6);opacity:0}to{transform:translateX(-50%) scale(1);opacity:1}}
+#vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(8,10,28,.42) 100%)}
+#flash{position:fixed;inset:0;pointer-events:none;opacity:0;z-index:14}
+#flash.go{animation:flashGo .7s ease-out}
+@keyframes flashGo{0%{opacity:1}100%{opacity:0}}
 /* countries */
 .country-btn{width:100%;display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:16px;border:1px solid var(--panel-line);background:var(--panel);box-shadow:0 5px 0 rgba(0,0,0,.4);text-align:left}
 .country-btn:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.4)}
@@ -308,6 +318,7 @@ textarea#saveCode{width:100%;min-height:76px;font-family:ui-monospace,Menlo,Cons
 </head>
 <body>
 <canvas id="c"></canvas>
+<div id="vignette"></div>
 <div id="danger"></div>
 <div id="turboFx"></div>
 <div id="slowFx"></div>
@@ -324,6 +335,8 @@ textarea#saveCode{width:100%;min-height:76px;font-family:ui-monospace,Menlo,Cons
 <div id="warn" hidden>ER IST DIREKT HINTER DIR!</div>
 <div id="toast" hidden></div>
 <div id="turnHint" hidden></div>
+<div id="alert" hidden></div>
+<div id="flash"></div>
 <div id="worldBanner" hidden></div>
 <div id="bubble" hidden></div>
 <div id="shout" hidden></div>
@@ -490,6 +503,7 @@ textarea#saveCode{width:100%;min-height:76px;font-family:ui-monospace,Menlo,Cons
 <script src="js/characters.js"></script>
 <script src="js/objects.js"></script>
 <script src="js/game.js"></script>
+<script src="js/events.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/main.js"></script>
 </body>
