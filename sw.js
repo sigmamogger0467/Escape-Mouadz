@@ -1,6 +1,6 @@
 // Offline-Speicher fuer die App-Version. Bei jeder Spiel-Aenderung VERSION erhoehen,
 // damit die Geraete die neuen Dateien laden.
-const VERSION = 'mouadz-v1';
+const VERSION = 'mouadz-v2';
 const FILES = [
   './',
   'index.html',
@@ -13,6 +13,7 @@ const FILES = [
   'js/characters.js',
   'js/objects.js',
   'js/game.js',
+  'js/events.js',
   'js/ui.js',
   'js/main.js',
   'fonts/luckiest-guy-latin-400-normal.woff2',
