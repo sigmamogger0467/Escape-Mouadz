@@ -261,7 +261,8 @@ const CHORDS = [AM, EM, AM, EM, AM, DM, EM, AM,  AM, EM, DM, AM, AM, DM, EM, AM]
 function musicTick(){
   if (!music.on || !actx) return;
   const sp = typeof G !== 'undefined' && G.speed ? G.speed : 14;
-  const s16 = 60/(146 + Math.min(36, (sp - 14)*1.6))/4;
+  const hot = typeof G !== 'undefined' && G.phase && G.phase.kind === 'intense' ? 12 : 0;
+  const s16 = 60/(146 + hot + Math.min(36, (sp - 14)*1.6))/4;
   while (music.next < actx.currentTime + .25){
     const t = music.next, i = music.step % SARBA.length, st = i % 8, bar = Math.floor(i/8);
     const R = music.root, chord = CHORDS[bar];

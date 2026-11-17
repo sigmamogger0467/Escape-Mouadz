@@ -59,7 +59,7 @@ const coinTex = canvasTex(128, 128, (g, w, h) => {
   g.fill();
 });
 const coinGeo = new THREE.CylinderGeometry(.32, .32, .08, 26); coinGeo.rotateX(Math.PI/2);
-const coinMat = toon({map: coinTex, emissive: 0x3a2400});
+const coinMat = new THREE.MeshStandardMaterial({map: coinTex, metalness:.85, roughness:.3, emissive:0x3a2400, emissiveIntensity:.5});
 // all coins are drawn as instances of one mesh; each coin object only holds a transform
 const coinIM = new THREE.InstancedMesh(coinGeo, coinMat, 400);
 coinIM.count = 0; coinIM.frustumCulled = false; coinIM.layers.enable(OUTLINE_LAYER); worldG.add(coinIM);
@@ -74,7 +74,7 @@ function syncCoins(){
 const wheelGeo = new THREE.CylinderGeometry(.45, .45, .3, 18); wheelGeo.rotateZ(Math.PI/2);
 const texMatCache = {}, cbCache = {};
 function countryBanner(t){ return cbCache[t] || (cbCache[t] = textTex(t, '#ffd23a', '#1d2a4a')); }
-function texMat(tex){ const k = tex.uuid; return texMatCache[k] || (texMatCache[k] = toon({map: tex})); }
+function texMat(tex, o){ const k = tex.uuid; return texMatCache[k] || (texMatCache[k] = toon(Object.assign({map: tex, roughness: o && o.roughness || .6, metalness: o && o.roughness < .5 ? .35 : 0}))); }
 function wheel(x, y, z, g){
   const w = new THREE.Mesh(wheelGeo, std(0x15151a, .8)); w.position.set(x, y, z); g.add(w);
   const hub = cyl(.2, .2, .32, std(0xb8bcc4, .3, .5), x, y, z, g, 12); hub.rotation.z = Math.PI/2;
@@ -130,6 +130,10 @@ function lowObstacle(kind, g){
       cone(.21, .22, sand, sx, sx ? .76 : .9, 0, g, 14);
     }
     cyl(.01, .01, .3, std(0x5a3a1a), 0, 1.13, 0, g, 4); rbox(.14, .09, .01, std(0xd62b2b), .07, 1.24, 0, g, .005);
+  } else if (kind === 'vent'){
+    rbox(1.5, .62, .7, std(0xb8bcc4, .5, .5), 0, .31, 0, g, .06);
+    for (const x of [-.4, .4]){ cyl(.24, .24, .06, std(0x3a3e48, .6, .3), x, .65, 0, g, 16); torus(.24, .03, std(0x8a8f99, .4, .6), x, .68, 0, g).rotation.x = Math.PI/2; }
+    cyl(.09, .09, .7, std(0x8a8f99, .4, .6), .85, .35, .1, g, 10); sph(.1, std(0x8a8f99, .4, .6), .85, .72, .1, g);
   } else if (kind === 'crates'){
     const wood = std(0xc8904a), dark = std(0x8a5a2a);
     for (const [x, y, sz] of [[-.5, .3, .6], [.15, .3, .6], [.75, .25, .5], [-.18, .82, .45]]){
@@ -184,7 +188,7 @@ const obstacleTemplates = new Map();
 function makeObstacle(type, lane, z){
   const W = WORLDS[worldIdx];
   let variant = '', bannerTex = null;
-  if (type === 'barrier') variant = W.low;
+  if (type === 'barrier') variant = G.mode === 'roof' ? 'vent' : W.low;
   else if (type === 'train' || type === 'mtrain') variant = W.train;
   else if (type === 'bar'){
     const cb = countryById(save.country).banner;
@@ -203,7 +207,7 @@ function buildObstacle(type, bannerTex){
   const g = new THREE.Group();
   let o;
   if (type === 'barrier'){
-    lowObstacle(WORLDS[worldIdx].low, g);
+    lowObstacle(G.mode === 'roof' ? 'vent' : WORLDS[worldIdx].low, g);
     o = {type, hw:.95, hd:.2, y0:0, y1:.82};
   } else if (type === 'bar'){
     for (const sx of [-1, 1]){ cyl(.07, .08, 2.45, std(0x2b2d3a, .4, .3), sx, 1.22, 0, g, 12); sph(.1, std(0x2b2d3a), sx, 2.47, 0, g); }
@@ -322,7 +326,7 @@ function makePower(type, lane, z){
   g.position.set(LANES[lane], 1.0, z);
   return addObj({kind:'power', type, mesh:g, inner});
 }
-function clearObjs(){ for (const o of objs) worldG.remove(o.mesh); objs = []; }
+function clearObjs(){ for (const o of objs){ worldG.remove(o.mesh); if (o.rig) disposeMerged(o.mesh); } objs = []; }
 function coinLine(lane, zStart, n, shape){
   for (let i = 0; i < n; i++){
     const z = zStart - i*2.2;

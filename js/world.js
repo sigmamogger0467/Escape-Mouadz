@@ -4,27 +4,34 @@ const LANES = [-2.2, 0, 2.2];
 // turnG pivots the whole street around the runner when turning at a crossing
 const turnG = new THREE.Group(), worldG = new THREE.Group(); turnG.add(worldG); scene.add(turnG);
 
-const roadTex = canvasTex(256, 256, (g, w, h) => {
-  g.fillStyle = '#4a4c66'; g.fillRect(0, 0, w, h);
-  for (let i = 0; i < 900; i++){ g.fillStyle = `rgba(255,255,255,${Math.random()*.05})`; g.fillRect(Math.random()*w, Math.random()*h, 3, 3); }
-  g.fillStyle = '#ffd23a'; g.fillRect(5, 0, 6, h); g.fillRect(w - 11, 0, 6, h);
-  g.fillStyle = '#f6f2e8';
-  for (const x of [w/3, 2*w/3]){ g.beginPath(); g.roundRect ? g.roundRect(x - 4, 10, 8, h*.42, 4) : g.rect(x - 4, 10, 8, h*.42); g.fill(); }
-  g.fillStyle = '#34364c'; g.beginPath(); g.arc(w/6, h*.72, 12, 0, 7); g.fill();
-  g.strokeStyle = '#5a5c76'; g.lineWidth = 2; for (let i = -8; i <= 8; i += 4){ g.beginPath(); g.moveTo(w/6 - 9, h*.72 + i); g.lineTo(w/6 + 9, h*.72 + i); g.stroke(); }
-  g.strokeStyle = '#2a2c40'; g.lineWidth = 2.5; g.beginPath(); g.arc(w/6, h*.72, 12, 0, 7); g.stroke();
+const roadTex = canvasTex(512, 512, (g, w, h) => {
+  // asphalt: dark base, fine grain, darker tyre tracks, slightly worn paint
+  g.fillStyle = '#3b3d45'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 9000; i++){ const v = Math.random(); g.fillStyle = v < .5 ? `rgba(255,255,255,${.02 + Math.random()*.06})` : `rgba(0,0,0,${.03 + Math.random()*.1})`; g.fillRect(Math.random()*w, Math.random()*h, 1 + Math.random()*2, 1 + Math.random()*2); }
+  for (const cx of [w/6, w/2, 5*w/6]) for (const off of [-.055, .055]){ const gr = g.createLinearGradient(cx + off*w - 16, 0, cx + off*w + 16, 0); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(.5, 'rgba(0,0,0,.16)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(cx + off*w - 16, 0, 32, h); }
+  g.fillStyle = '#d9b84a'; g.fillRect(9, 0, 9, h); g.fillRect(w - 18, 0, 9, h);
+  g.fillStyle = '#e4e1d6';
+  for (const x of [w/3, 2*w/3]) g.fillRect(x - 6, 20, 12, h*.42);
+  for (let i = 0; i < 500; i++){ g.fillStyle = 'rgba(59,61,69,.55)'; const x = pick([w/3, 2*w/3, 13, w - 14]) + (Math.random() - .5)*14; g.fillRect(x, Math.random()*h, 1 + Math.random()*3, 1 + Math.random()*4); }
+  g.strokeStyle = 'rgba(15,15,20,.55)'; g.lineWidth = 1.6;
+  for (let c = 0; c < 4; c++){ let x = Math.random()*w, y = Math.random()*h; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 7; k++){ x += (Math.random() - .5)*34; y += 10 + Math.random()*22; g.lineTo(x, y); } g.stroke(); }
+  g.fillStyle = '#2c2e36'; g.beginPath(); g.arc(w/6, h*.72, 22, 0, 7); g.fill();
+  g.strokeStyle = '#55586a'; g.lineWidth = 3; for (let i = -14; i <= 14; i += 7){ g.beginPath(); g.moveTo(w/6 - 17, h*.72 + i); g.lineTo(w/6 + 17, h*.72 + i); g.stroke(); }
+  g.strokeStyle = '#1e2028'; g.lineWidth = 4; g.beginPath(); g.arc(w/6, h*.72, 22, 0, 7); g.stroke();
 });
 roadTex.wrapS = roadTex.wrapT = THREE.RepeatWrapping; roadTex.repeat.set(1, 40);
-const roadMat = toon({map: roadTex});
+const roadMat = toon({map: roadTex, roughness:.95});
 const road = new THREE.Mesh(new THREE.PlaneGeometry(6.6, 400), roadMat);
 road.rotation.x = -Math.PI/2; road.position.z = -120; road.receiveShadow = true; worldG.add(road);
 
-const walkTex = canvasTex(128, 128, (g, w, h) => {
-  g.fillStyle = '#b8b4c8'; g.fillRect(0, 0, w, h);
-  g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(4, 4, w/2 - 8, h/2 - 8); g.fillRect(w/2 + 4, h/2 + 4, w/2 - 8, h/2 - 8);
-  g.strokeStyle = '#8c88a0'; g.lineWidth = 4;
+const walkTex = canvasTex(256, 256, (g, w, h) => {
+  // concrete slabs with speckle, joints and a darker kerb
+  g.fillStyle = '#b4b1ad'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 5000; i++){ g.fillStyle = Math.random() < .5 ? `rgba(255,255,255,${Math.random()*.1})` : `rgba(0,0,0,${Math.random()*.1})`; g.fillRect(Math.random()*w, Math.random()*h, 2, 2); }
+  for (let i = 0; i < 2; i++) for (let k = 0; k < 2; k++){ g.fillStyle = `rgba(0,0,0,${Math.random()*.06})`; g.fillRect(i*w/2, k*h/2, w/2, h/2); }
+  g.strokeStyle = 'rgba(60,58,56,.8)'; g.lineWidth = 3;
   for (let i = 0; i <= 2; i++){ g.beginPath(); g.moveTo(0, i*h/2); g.lineTo(w, i*h/2); g.stroke(); g.beginPath(); g.moveTo(i*w/2, 0); g.lineTo(i*w/2, h); g.stroke(); }
-  g.fillStyle = '#6d697c'; g.fillRect(0, 0, 9, h); g.fillRect(w - 9, 0, 9, h);
+  g.fillStyle = '#8a8884'; g.fillRect(0, 0, 14, h); g.fillRect(w - 14, 0, 14, h);
 });
 walkTex.wrapS = walkTex.wrapT = THREE.RepeatWrapping;
 const tileTex = walkTex.clone(); tileTex.needsUpdate = true; tileTex.repeat.set(1, 5/3);
@@ -49,10 +56,11 @@ ground.rotation.x = -Math.PI/2; ground.position.set(0, -0.02, -150); scene.add(g
 
 /* --- buildings: facade textures by style --- */
 function buildingSize(W){ return {w: 4 + Math.random()*4, d: 6 + Math.random()*8, h: W.bh[0] + Math.random()*(W.bh[1] - W.bh[0])}; }
+const desat = (hex, k) => { const c = new THREE.Color(hex), h = {}; c.getHSL(h); c.setHSL(h.h, h.s*(1 - k), h.l*(1 - k*.12)); return '#' + c.getHexString(); };
 const shade = (hex, k) => { const c = new THREE.Color(hex); c.multiplyScalar(k); return '#' + c.getHexString(); };
 // Two textures per building: the facade, and a glow map that only holds the lit windows (they shine at night)
 function makeWindowTex(W, cols, rows){
-  const base = pick(W.buildings), lit = [], C = 16, f = W.facade;
+  const base = desat(pick(W.buildings), .3), lit = [], C = 16, K = 1.5, f = W.facade;
   const cell = (g, c, r, col, on) => {
     const x = c*C, y = r*C;
     if (f === 'arch'){
@@ -61,12 +69,14 @@ function makeWindowTex(W, cols, rows){
       g.fillStyle = on ? col : '#f4ead0'; g.fillRect(x + 3, y + 3, 10, 10);
       g.fillStyle = 'rgba(60,30,20,.7)'; g.fillRect(x + 7.5, y + 3, 1, 10); g.fillRect(x + 3, y + 7.5, 10, 1);
     } else {
-      g.fillStyle = col; g.fillRect(x + 4, y + (f === 'euro' ? 2 : 4), 8, f === 'euro' ? 12 : 9);
+      if (on) g.fillStyle = col; else { const gg = g.createLinearGradient(x + 4, y + 2, x + 12, y + 14); gg.addColorStop(0, shade(W.dark, 2.2)); gg.addColorStop(.45, W.dark); gg.addColorStop(1, shade(W.dark, .65)); g.fillStyle = gg; }
+      g.fillRect(x + 4, y + (f === 'euro' ? 2 : 4), 8, f === 'euro' ? 12 : 9);
       g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(x + 4, y + (f === 'euro' ? 2 : 4), 8, 2);
     }
     if (on) lit.push([x, y]);
   };
-  const map = canvasTex(cols*C, rows*C, (g, Wd, H) => {
+  const map = canvasTex(cols*C*K, rows*C*K, (g, Wd, H) => {
+    g.scale(K, K); Wd /= K; H /= K;
     const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, base); gr.addColorStop(1, shade(base, .82));
     g.fillStyle = gr; g.fillRect(0, 0, Wd, H);
     if (f === 'brick'){ g.fillStyle = 'rgba(0,0,0,.12)'; for (let y = 0; y < H; y += 4) g.fillRect(0, y, Wd, 1); }
@@ -89,8 +99,10 @@ function makeWindowTex(W, cols, rows){
     }
     if (f === 'favela'){ g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(0, H - 6, Wd, 3); }
     g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(0, H - 3, Wd, 3);
+    for (let i = 0; i < cols*2; i++){ const x = Math.random()*Wd, l = 6 + Math.random()*H*.3; const gr2 = g.createLinearGradient(0, 0, 0, l); gr2.addColorStop(0, 'rgba(0,0,0,.14)'); gr2.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr2; g.fillRect(x, 0, 1.5 + Math.random()*2, l); }
   });
-  const glow = canvasTex(cols*C, rows*C, (g, Wd, H) => {
+  const glow = canvasTex(cols*C*K, rows*C*K, (g, Wd, H) => {
+    g.scale(K, K); Wd /= K; H /= K;
     g.fillStyle = '#000'; g.fillRect(0, 0, Wd, H);
     g.fillStyle = '#ffe9b0';
     for (const [x, y] of lit) g.fillRect(x + 4, y + 4, 8, 9);
@@ -153,6 +165,7 @@ function skinMainBuilding(b){
   b.scale.set(s.w, s.h, s.d); addRoof(b, s.w, s.h, s.d, W);
   b.position.x = b.userData.side*(6.4 + s.w/2); b.position.y = s.h/2;
   b.userData.d = s.d; b.userData.world = W.id;
+  if (typeof placeBuildingY === 'function' && typeof G !== 'undefined' && G.mode) placeBuildingY(b);
 }
 
 /* --- lamps & decorations (per world) --- */
@@ -256,7 +269,7 @@ function lerpPal(a, b, t){
   return o;
 }
 const backdrop = new THREE.Group(); scene.add(backdrop);
-const cloudMat = new THREE.MeshToonMaterial({color: 0xffffff, gradientMap: toonGrad, fog: false, transparent: true, opacity: 1});
+const cloudMat = new THREE.MeshLambertMaterial({color: 0xffffff, fog: false, transparent: true, opacity: 1});
 const clouds = [];
 for (let i = 0; i < 9; i++){
   const c = new THREE.Group();
@@ -283,7 +296,7 @@ celestial.position.set(70, 85, -340); celestial.scale.set(70, 70, 1); scene.add(
 
 function lmMats(W){
   const fog = new THREE.Color(W.fog);
-  return col => { const k = 'lm' + col + '_' + W.id; return matCache[k] || (matCache[k] = new THREE.MeshToonMaterial({color: new THREE.Color(col).lerp(fog, .38), gradientMap: toonGrad, fog: false})); };
+  return col => { const k = 'lm' + col + '_' + W.id; return matCache[k] || (matCache[k] = new THREE.MeshLambertMaterial({color: new THREE.Color(col).lerp(fog, .38), fog: false})); };
 }
 // Landmarks are simple cartoon models at the end of the street, far behind everything else.
 function buildLandmark(W){
@@ -464,14 +477,16 @@ function setLandmark(W, animate){
   const ls = landmark.userData.s; landmarkRise = animate ? 0 : 1; landmark.scale.set(ls, animate ? .01 : ls, ls);
 }
 function applyPalette(p){
+  if (typeof paletteMod === 'function' && typeof G !== 'undefined' && G.weather) p = paletteMod(p);
   const gr = skyCtx.createLinearGradient(0, 0, 0, 256);
   [0, .45, .75, 1].forEach((s, i) => gr.addColorStop(s, '#' + p.sky[i].getHexString()));
   skyCtx.fillStyle = gr; skyCtx.fillRect(0, 0, 256, 256);
   if (p.stars > .02) for (const [x, y, r, a] of STARS){ skyCtx.fillStyle = `rgba(255,255,255,${(.35 + a*.65)*p.stars})`; skyCtx.fillRect(x, y, r, r); }
   skyTex.needsUpdate = true;
-  scene.fog.color.copy(p.fog); hemi.color.copy(p.hemiSky); hemi.groundColor.copy(p.hemiGround); hemi.intensity = p.hemiI;
+  scene.fog.color.copy(p.fog); hemi.color.copy(p.hemiSky); hemi.groundColor.copy(p.hemiGround); hemi.intensity = p.hemiI*.62;
+  if (typeof envDirty !== 'undefined') envDirty = true;
   groundMat.color.copy(p.ground); walkMat.color.copy(p.walk); roadMat.color.copy(p.road);
-  sun.intensity = p.sunI; haloMat.opacity = .25 + p.glow*.75;
+  sun.intensity = p.sunI*1.9; sun.color.copy(p.sky[3]).lerp(new THREE.Color(0xffffff), .55); haloMat.opacity = .25 + p.glow*.75;
   for (const b of buildings) b.material.emissiveIntensity = p.glow;
   cloudMat.opacity = p.clouds; for (const c of clouds) c.visible = p.clouds > .02;
   cloudMat.color.setRGB(1, 1, 1).lerp(p.sky[3], .22);
@@ -541,7 +556,10 @@ const snowGeo = new THREE.BufferGeometry(); snowGeo.setAttribute('position', new
 const snowMat = new THREE.PointsMaterial({color:0xffffff, size:.18, map: glowTex, transparent:true, opacity:0, depthWrite:false});
 const snow = new THREE.Points(snowGeo, snowMat); snow.frustumCulled = false; scene.add(snow);
 function updateSnow(dt, speed){
-  const target = WORLDS[worldIdx].snow ? .95 : 0;
+  const st = typeof stormK === 'function' && G.weather && G.weather.climate !== 'mild' ? stormK() : 0;
+  const target = Math.max(WORLDS[worldIdx].snow && G.mode !== 'metro' ? .95 : 0, st);
+  if (st > 0){ dt *= 1 + 2.5*st; for (let i = 0; i < SNOW_N; i++){ snowPos[i*3] += dt*3*st; if (snowPos[i*3] > 15) snowPos[i*3] -= 30; } }
+  else if (snowMat.color.getHex() !== 0xffffff && snowMat.opacity < .02) snowMat.color.setHex(0xffffff);
   snowMat.opacity += (target - snowMat.opacity)*Math.min(1, dt*1.5);
   snow.visible = snowMat.opacity > .01;
   if (!snow.visible) return;
@@ -569,7 +587,7 @@ function scrollWorld(d){
       p.position.z -= PROP_COUNT*PROP_SPACING;
       if (p.userData.kind === 'deco' && p.userData.world !== wid){ replaceDeco(k); p = props[k]; }
     }
-    p.visible = (!J || p.position.z > lim) && p.position.z > -172;
+    p.visible = (!J || p.position.z > lim) && p.position.z > -172 && G.mode === 'street';
   }
   for (const b of buildings){
     b.position.z += d;
@@ -579,7 +597,7 @@ function scrollWorld(d){
       for (const o of buildings) if (o.userData.side === b.userData.side && o !== b) minZ = Math.min(minZ, o.position.z - o.userData.d/2);
       b.position.z = minZ - Math.random()*1.5 - b.userData.d/2;
     }
-    b.visible = (!J || b.position.z - b.userData.d/2 > lim + 16) && b.position.z + b.userData.d/2 > -175;
+    b.visible = (!J || b.position.z - b.userData.d/2 > lim + 16) && b.position.z + b.userData.d/2 > -175 && G.mode !== 'metro';
     const near = b.position.z > -95;
     if (b.userData.nearShown !== near){ b.userData.nearShown = near; for (const c of b.children) c.visible = near; }
   }

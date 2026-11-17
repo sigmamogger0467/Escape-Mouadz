@@ -74,6 +74,8 @@ function spawnJunction(z){
   const r = Math.random(), kind = r < .5 ? 'T' : r < .75 ? 'L' : 'R';
   if (G.junction) removeJunction(G.junction.J);
   const J = buildJunction(kind); J.position.set(0, 0, z); worldG.add(J);
+  const alt = {up: G.dist > 250 && Math.random() < .6, down: G.dist > 250 && Math.random() < .6};
+  J.userData.alt = alt; addRouteSigns(J, alt);
   G.junction = {J, turned:false, kind}; G.mPlan = null; G.turnQueued = 0;
   coinLine(1, z + 18, 5);
   scrollWorld(0);
@@ -91,20 +93,32 @@ function resetGame(){
     spawnZ:-45, lineT:1.2, shake:0, caughtT:0, caughtReason:'', lastWallLine:0, lastIceLine:0, pendingLine:null, missionT:0,
     junction:null, turning:null, turnQueued:0, nextJunction: 300 + Math.random()*150, mPlan:null, roofAcc:0
   });
+  resetEvents();
   if (worldIdx !== 0 || appliedWorldId !== WORLDS[0].id) setWorld(0, true); else layoutMain(70, 80);
   scrollWorld(0);
 }
 
 function spawnRow(){
-  if (G.dist - G.spawnZ > G.nextJunction){ spawnJunction(G.spawnZ - 24); return; }
-  const gap = 13 + Math.random()*7 + G.speed*.3;
+  if (G.mode === 'street' && !G.boss && G.dist - G.spawnZ > G.nextJunction){ spawnJunction(G.spawnZ - 24); return; }
+  const calm = G.phase.kind === 'calm', intense = !calm, mode = G.mode;
+  const gap = (13 + Math.random()*7 + G.speed*.3)*(calm ? 1.18 : .93);
   const z = G.spawnZ - gap;
   const reserved = G.mPlan ? G.mPlan.lane : -1;
   const lanes = [0, 1, 2].filter(l => l !== reserved).sort(() => Math.random() - .5);
+  if (mode === 'street' && reserved < 0 && intense && G.dist > 450){
+    // 1) combo of three moves, 2) a helper who changes lanes
+    if (G.t - G.lastCombo > 9 && Math.random() < .2){ spawnCombo(z); return; }
+    if (agentCount() < 2 && Math.random() < .16){
+      makeAgent(lanes[0], z); coinLine(pick([0, 1, 2]), z + 6, 5);
+      G.spawnZ = z - 4; return;
+    }
+  }
   const nonBlock = () => Math.random() < .5 ? 'barrier' : 'bar';
   const iceChance = Math.min(.2, .07 + G.dist/8000);
   const anyType = () => {
     const q = Math.random();
+    if (mode === 'roof') return q < .45 ? 'barrier' : q < .8 ? 'bar' : 'wall';
+    if (mode === 'metro') return q < .3 ? 'barrier' : q < .55 ? 'bar' : q < .7 ? 'wall' : 'train';
     if (q < .24) return 'barrier'; if (q < .46) return 'bar'; if (q < .46 + iceChance) return 'ice';
     if (q < .8) return 'wall'; if (q < .9 || G.dist < 250) return 'bus'; return 'train';
   };
@@ -121,15 +135,16 @@ function spawnRow(){
     else makeObstacle(type, lane, z);
   };
   const r = Math.random();
-  if (r < .13){
+  const pCoin = mode === 'roof' ? .3 : calm ? .2 : .1, pYard = mode === 'metro' ? .58 : mode === 'roof' ? 2 : .79;
+  if (r < pCoin){
     coinLine(lanes[0], z + 5, 6);
   } else if (r < .42){
     place(anyType(), lanes[0]);
     if (lanes[1] !== undefined) coinLine(lanes[1], z + 5, 6);
-  } else if (r < .66){
+  } else if (r < pYard - .13){
     place(anyType(), lanes[0]); place(anyType(), lanes[1]);
     if (lanes[2] !== undefined) coinLine(lanes[2], z + 5, 6);
-  } else if (r < .79 || G.dist < 180 || reserved >= 0){
+  } else if (r < pYard || G.dist < 180 || reserved >= 0){
     for (const l of lanes) place(nonBlock(), l);
   } else {
     // train yard: one train has a ramp so you can run across the roofs
@@ -143,18 +158,23 @@ function spawnRow(){
   for (let l = 0; l < 3; l++){
     if (placed[l] === 'barrier' && Math.random() < .55) coinLine(l, z + 4.4, 5, 'arc');
     if (placed[l] === 'bar' && Math.random() < .4) coinLine(l, z + 4.4, 5, 'low');
+    if (mode === 'roof' && !placed[l] && l !== reserved && Math.random() < .5) coinLine(l, z + 2, 4);
   }
-  if (Math.random() < .08 && G.dist > 120){
+  // 4) power-ups get rarer the further you run
+  const pPower = Math.max(.025, .1*Math.exp(-G.dist/5000))*(calm ? 1.25 : 1);
+  if (Math.random() < pPower && G.dist > 120){
     const free = [0, 1, 2].filter(l => !placed[l] && l !== reserved);
     const lane = free.length ? pick(free) : lanes[0];
-    makePower(pick(['magnet', 'shield', 'double', 'turbo', 'jet', 'boots', 'slowmo', 'magnet', 'double']), lane, z - gap*.5);
+    makePower(pick(['magnet', 'shield', 'double', 'turbo', 'jet', 'boots', 'slowmo', 'magnet', 'double'].filter(t => mode === 'street' || (t !== 'jet' && t !== 'turbo'))), lane, z - gap*.5);
   }
-  if (placed.includes('wall') && G.t - G.lastWallLine > 9 && Math.random() < .5){ G.lastWallLine = G.t; G.pendingLine = "Ich baue eine Mauer! Eine wunderschöne Mauer!"; }
-  else if (placed.includes('ice') && G.t - G.lastIceLine > 9 && Math.random() < .5){ G.lastIceLine = G.t; G.pendingLine = "ICE! Schnappt ihn euch!"; sfx('siren'); }
+  if (mode === 'street'){
+    if (placed.includes('wall') && G.t - G.lastWallLine > 9 && Math.random() < .5 && !chaserById(save.chaser).lines){ G.lastWallLine = G.t; G.pendingLine = "Ich baue eine Mauer! Eine wunderschöne Mauer!"; }
+    else if (placed.includes('ice') && G.t - G.lastIceLine > 9 && Math.random() < .5){ G.lastIceLine = G.t; if (!chaserById(save.chaser).lines) G.pendingLine = "ICE! Schnappt ihn euch!"; sfx('siren'); }
+  }
   // oncoming train: keep its lane clear for a few rows, then send it
   if (G.mPlan){
     if (--G.mPlan.rows <= 0){ makeObstacle('mtrain', G.mPlan.lane, z - 10 - TRAIN_LEN/2); G.mPlan = null; }
-  } else if (G.dist > 450 && Math.random() < .12) G.mPlan = {lane:(Math.random()*3)|0, rows:5};
+  } else if (mode !== 'roof' && G.dist > 450 && Math.random() < (mode === 'metro' ? .22 : .12)) G.mPlan = {lane:(Math.random()*3)|0, rows:5};
   G.spawnZ = z - extraLen;
 }
 
@@ -179,11 +199,13 @@ function stageAt(n){
 }
 function jump(){
   if (state !== 'running') return;
+  if (junctionWindow() !== null && G.junction.J.userData.alt.up){ G.turnQueued = 'up'; return; }
   if (G.grounded && G.jet <= 0){ G.vy = G.boots > 0 ? 15.5 : 11; G.grounded = false; G.slide = 0; G.jumpT = 0; G.trick = Math.random() < .3; sfx('jump'); addStat('jumps', 1); }
 }
 function startSlide(){ G.slide = .75; sfx('slide'); addStat('slides', 1); }
 function slide(){
   if (state !== 'running') return;
+  if (junctionWindow() !== null && G.junction.J.userData.alt.down){ G.turnQueued = 'down'; return; }
   if (G.jet > 0) return;
   if (!G.grounded){ G.vy = -22; G.queueSlide = true; }
   else if (G.slide <= 0) startSlide();
@@ -249,6 +271,7 @@ function finishRun(){
 }
 function caught(reason){
   if (state !== 'running') return;
+  if (G.boss){ G.boss = null; heli.visible = false; }
   state = 'caught'; G.caughtT = 0; G.caughtReason = reason; G.slide = 0; G.turnQueued = 0;
   sfx('fired'); G.shake = .5; setMusic(false);
   say((chaserById(save.chaser).stamp || "YOU'RE FIRED!").replace(/<br>/g, ' ').replace('- ', ''), 3);
@@ -307,7 +330,7 @@ function update(dt){
   if (G.turbo > 0) target *= 1.5;
   G.speed += (target - G.speed)*Math.min(1, dt*2.5);
   const d = G.speed*dt;
-  G.dist += d; G.score += d*G.mult; G.lastD = 0;
+  G.dist += d; G.score += d*G.mult*(G.mode === 'metro' ? 2 : 1); G.lastD = 0;
   addStat('distTotal', d); maxStat('bestDist', G.dist);
 
   // next world: first the country's worlds in order, then random ones with exponentially rising thresholds
@@ -315,7 +338,7 @@ function update(dt){
     G.stage++;
     let wi = G.stage;
     if (wi >= WORLDS.length){ do { wi = (Math.random()*WORLDS.length)|0; } while (wi === worldIdx && WORLDS.length > 1); }
-    setWorld(wi, false); maxStat('worldMax', G.stage); music.root = MUSIC_ROOTS[wi % MUSIC_ROOTS.length];
+    setWorld(wi, false); applyWeatherLook(); startBoss(); maxStat('worldMax', G.stage); music.root = MUSIC_ROOTS[wi % MUSIC_ROOTS.length];
     say(chaserById(save.chaser).lines ? pick(chaserLines()) : pick(["Auch diese Welt gehört bald mir!", "Ich kaufe diese Stadt!", "Du kannst nicht ewig rennen!"]), 2.4);
   }
 
@@ -347,13 +370,13 @@ function update(dt){
 
   scrollWorld(d); G.lastD = d;
   G.spawnZ += d;
-  while (G.spawnZ > -175 && !(G.junction && !G.junction.turned)) spawnRow();
+  while (G.spawnZ > -175 && !(G.junction && !G.junction.turned) && !G.boss) spawnRow();
   if (G.pendingLine){ say(G.pendingLine, 2.4); G.pendingLine = null; }
 
   // crossing: turn when the queued direction reaches the middle, crash into the house wall otherwise
   if (G.junction && !G.junction.turned){
     const J = G.junction.J, jz = J.position.z, open = J.userData.open;
-    if (G.turnQueued && jz >= -.2){ startTurn(G.turnQueued); return; }
+    if (G.turnQueued && jz >= -.2){ if (typeof G.turnQueued === 'string') enterRoute(G.turnQueued); else startTurn(G.turnQueued); return; }
     if (jz >= 5.4){
       if (G.shield > 0 || G.turbo > 0 || G.jet > 0){ if (G.turbo <= 0 && G.jet <= 0) G.shield = 0; startTurn(open[-1] ? -1 : 1); return; }
       caught('dead-end'); return;
@@ -368,8 +391,10 @@ function update(dt){
       if (!o.honked && o.mesh.position.z > -85){ o.honked = true; sfx('horn'); }
     }
   }
-  // runner physics, with train roofs and ramps as ground
-  G.x += (LANES[G.lane] - G.x)*Math.min(1, dt*14);
+  updateEvents(dt, d);
+  if (state !== 'running') return;
+  // runner physics, with train roofs and ramps as ground; on a slippery road lane changes take longer
+  G.x += (LANES[G.lane] - G.x)*Math.min(1, dt*(14 - 10*slipK()));
   const gnd = groundAt(G.x, 0); G.gy = gnd.h;
   if (G.jet > 0){
     G.jet -= dt; G.grounded = false; G.vy = 0; G.slide = 0; G.closeT = Math.min(G.closeT, 0);
@@ -447,7 +472,7 @@ function update(dt){
         if (o.type === 'ice' && !o.counted && m.position.z - o.hd > .6){ o.counted = true; addStat('iceDodged', 1); }
       }
     }
-    if (m.position.z > 16 || m.position.y < -5){ worldG.remove(m); objs.splice(i, 1); }
+    if (m.position.z > 16 || m.position.y < -5) removeObj(i);
   }
 }
 
@@ -542,12 +567,14 @@ function frame(now){
 
     const canGround = !G.turning && state !== 'paused';
     if (canGround){ const gh = groundAt(G.chaseX, G.chaseDist).h; G.chaseY += (gh - G.chaseY)*Math.min(1, dt*10); }
+    const inHeli = eventsFrame(state === 'paused' ? 0 : dt) && !caughtMode;
     trump.group.visible = true;
-    trump.group.position.set(G.chaseX + (caughtMode ? .3 : 0), G.chaseY, G.chaseDist);
-    trump.group.rotation.y = 0;
-    poseTrump(trump, at, !caughtMode || G.caughtT < .6 ? 'run' : G.caughtT < 1.4 ? 'angry' : 'point', state === 'paused' ? 0 : dt);
+    trump.group.scale.setScalar(inHeli ? .52 : .9);
+    if (inHeli){ trump.group.position.set(heli.position.x, heli.position.y - 1.25, heli.position.z + .75); trump.group.rotation.y = Math.PI; }
+    else { trump.group.position.set(G.chaseX + (caughtMode ? .3 : 0), G.chaseY, G.chaseDist); trump.group.rotation.y = 0; }
+    poseTrump(trump, at, inHeli ? 'angry' : !caughtMode || G.caughtT < .6 ? 'run' : G.caughtT < 1.4 ? 'angry' : 'point', state === 'paused' ? 0 : dt);
     agents.forEach((a, i) => {
-      a.group.visible = true;
+      a.group.visible = !inHeli;
       const ax = Math.max(-3, Math.min(3, G.chaseX + (i ? 1.7 : -1.7)));
       const az = G.chaseDist + (caughtMode ? .6 : 1.6) + i*.4;
       const ay = canGround ? groundAt(ax, az).h : a.group.position.y;
@@ -590,7 +617,9 @@ function frame(now){
     const th = $('turnHint');
     if (G.junction && !G.junction.turned && !G.turning && G.junction.J.position.z > -50){
       const open = G.junction.J.userData.open;
-      const txt = G.turnQueued ? (G.turnQueued < 0 ? '⬅ LINKS!' : 'RECHTS! ➡') : `${open[-1] ? '⬅ ' : ''}ABBIEGEN${open[1] ? ' ➡' : ''}`;
+      const alt = G.junction.J.userData.alt, q = G.turnQueued;
+      const txt = q ? (q === 'up' ? '⬆ AUF DIE DÄCHER!' : q === 'down' ? '⬇ IN DIE U-BAHN!' : q < 0 ? '⬅ LINKS!' : 'RECHTS! ➡')
+        : `${open[-1] ? '⬅ ' : ''}ABBIEGEN${open[1] ? ' ➡' : ''}` + (alt.up ? ' · ⬆ DACH' : '') + (alt.down ? ' · ⬇ U-BAHN' : '');
       if (th.textContent !== txt) th.textContent = txt;
       th.classList.toggle('queued', !!G.turnQueued); th.hidden = false;
     } else th.hidden = true;
